@@ -6,14 +6,14 @@ import 'package:social_app/views/screen/profile.dart';
 
 import '../screen/friends.dart';
 
-class CustomBottomNavBar extends StatefulWidget {
-  CustomBottomNavBar({Key? key}) : super(key: key);
+class MainScreen extends StatefulWidget {
+  MainScreen({Key? key}) : super(key: key);
 
   @override
-  _CustomBottomNavBarState createState() => _CustomBottomNavBarState();
+  _MainScreenState createState() => _MainScreenState();
 }
 
-class _CustomBottomNavBarState extends State<CustomBottomNavBar> {
+class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _children = [Chat(),Friends(), Home(), Notifications(), Profile()];
 

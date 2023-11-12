@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:social_app/views/screen/auth/register.dart';
 import 'package:social_app/views/screen/home.dart';
+import 'package:social_app/views/widgets/MainScreen.dart';
 
 class Login extends StatelessWidget {
   @override
@@ -96,7 +97,7 @@ class Login extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         // Thực hiện điều hướng đến màn hình Home
-        Navigator.push(context, MaterialPageRoute(builder: (context) => Home()));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
       },
       child: Container(
         height: 50,

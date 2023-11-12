@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../widgets/CustomBottomNavBar.dart';
+import '../widgets/MainScreen.dart';
 import 'chat_info.dart';
 
 class Chat extends StatelessWidget {

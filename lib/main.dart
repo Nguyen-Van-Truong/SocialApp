@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:social_app/views/widgets/CustomBottomNavBar.dart'; // Đảm bảo đường dẫn đến CustomBottomNavBar đúng
+import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:social_app/views/widgets/MainScreen.dart';
 
 void main() {
   runApp(MyApp());
@@ -10,8 +11,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SocialApp',
-      home: CustomBottomNavBar(), // Sử dụng CustomBottomNavBar như là màn hình chính
-      // Cấu hình thêm nếu cần
+      home: Login(),
     );
   }
 }

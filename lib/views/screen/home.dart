@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/CustomBottomNavBar.dart';
+import '../widgets/MainScreen.dart';
 
 class Home extends StatelessWidget {
   @override
