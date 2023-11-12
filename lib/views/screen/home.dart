@@ -54,7 +54,6 @@ class Home extends StatelessWidget {
         },
         child: Icon(Icons.add),
       ),
-      bottomNavigationBar: CustomBottomNavBar(), // Use the new bottom nav bar widget
     );
   }
 
