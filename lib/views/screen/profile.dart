@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:social_app/views/screen/auth/Login.dart';
 
 class Profile extends StatelessWidget {
   @override
@@ -9,7 +10,7 @@ class Profile extends StatelessWidget {
       ),
       body: ListView(
         children: <Widget>[
-          // Phần tiêu đề thông tin tài khoản
+          // Account information header section
           Container(
             padding: EdgeInsets.all(16.0),
             child: Column(
@@ -17,11 +18,11 @@ class Profile extends StatelessWidget {
               children: <Widget>[
                 CircleAvatar(
                   radius: 60,
-                  backgroundImage: AssetImage('assets/profile_image.jpg'), // Thay đổi ảnh đại diện
+                  backgroundImage: AssetImage('assets/images/naruto.jpg'), // Change profile picture
                 ),
                 SizedBox(height: 10.0),
                 Text(
-                  'Tên Người Dùng', // Thay đổi tên người dùng
+                  'User Name', // Change to the user's name
                   style: TextStyle(
                     fontSize: 20.0,
                     fontWeight: FontWeight.bold,
@@ -29,7 +30,7 @@ class Profile extends StatelessWidget {
                 ),
                 SizedBox(height: 5.0),
                 Text(
-                  'Email: user@example.com', // Thay đổi email người dùng
+                  'Email: user@example.com', // Change to the user's email
                   style: TextStyle(
                     fontSize: 16.0,
                   ),
@@ -37,29 +38,29 @@ class Profile extends StatelessWidget {
               ],
             ),
           ),
-          // Các mục khác về tài khoản cá nhân
+          // Other personal account items
           ListTile(
             leading: Icon(Icons.edit),
-            title: Text('Chỉnh sửa thông tin cá nhân'),
+            title: Text('Edit Personal Information'),
             onTap: () {
-              // Xử lý khi người dùng nhấn vào chỉnh sửa thông tin cá nhân
+              // Handle user tap on edit personal information
             },
           ),
           ListTile(
             leading: Icon(Icons.lock),
-            title: Text('Đổi mật khẩu'),
+            title: Text('Change Password'),
             onTap: () {
-              // Xử lý khi người dùng nhấn vào đổi mật khẩu
+              // Handle user tap on change password
             },
           ),
           ListTile(
             leading: Icon(Icons.exit_to_app),
-            title: Text('Đăng xuất'),
+            title: Text('Log Out'),
             onTap: () {
-              // Xử lý khi người dùng nhấn vào đăng xuất
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
           ),
-          // Thêm các mục khác về tài khoản cá nhân nếu cần
+          // Add more personal account items if necessary
         ],
       ),
     );

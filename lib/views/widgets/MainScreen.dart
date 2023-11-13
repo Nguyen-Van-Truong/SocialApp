@@ -14,7 +14,7 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  int _currentIndex = 0;
+  int _currentIndex = 2;
   final List<Widget> _children = [Chat(),Friends(), Home(), Notifications(), Profile()];
 
   void _onItemTapped(int index) {

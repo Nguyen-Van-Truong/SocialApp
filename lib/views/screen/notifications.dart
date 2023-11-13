@@ -6,50 +6,94 @@ class Notifications extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text('Notifications'),
+        centerTitle: true,
       ),
       body: ListView.builder(
-        itemCount: notificationList.length, // Số lượng thông báo
+        itemCount: notificationList.length,
         itemBuilder: (context, index) {
           final notification = notificationList[index];
-          return ListTile(
-            leading: Icon(notification.icon), // Biểu tượng của thông báo
-            title: Text(notification.title), // Tiêu đề của thông báo
-            subtitle: Text(notification.message), // Nội dung thông báo
-            onTap: () {
-              // Xử lý khi người dùng nhấn vào thông báo
-              // Điều hướng hoặc hiển thị chi tiết thông báo
-            },
-          );
+          return NotificationCard(notification: notification);
         },
       ),
     );
   }
 }
 
-// Mô phỏng danh sách thông báo
 final List<NotificationItem> notificationList = [
   NotificationItem(
-    icon: Icons.notifications,
-    title: 'Thông báo 1',
-    message: 'Nội dung thông báo 1',
+    avatar: 'assets/images/naruto.jpg',
+    title: 'Bryant Marley',
+    message: 'mentioned you in a post',
+    time: '40m',
   ),
   NotificationItem(
-    icon: Icons.notifications,
-    title: 'Thông báo 2',
-    message: 'Nội dung thông báo 2',
+    avatar: 'assets/images/naruto.jpg',
+    title: 'Rosalva Sadberry',
+    message: 'reacted to your comment',
+    time: '33m',
   ),
-  // Thêm danh sách thông báo khác nếu cần
+  // Thêm các thông báo khác nếu cần
 ];
 
-// Định nghĩa lớp NotificationItem để lưu trữ thông tin thông báo
 class NotificationItem {
-  final IconData icon;
+  final String avatar;
   final String title;
   final String message;
+  final String time;
 
   NotificationItem({
-    required this.icon,
+    required this.avatar,
     required this.title,
     required this.message,
+    required this.time,
   });
+}
+
+class NotificationCard extends StatelessWidget {
+  final NotificationItem notification;
+
+  const NotificationCard({Key? key, required this.notification}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 30,
+          backgroundImage: AssetImage(notification.avatar),
+        ),
+        title: RichText(
+          text: TextSpan(
+            text: notification.title,
+            style: TextStyle(
+              fontSize: 18.0,
+              color: Colors.black,
+              fontWeight: FontWeight.bold,
+            ),
+            children: <TextSpan>[
+              TextSpan(
+                text: ' ${notification.message}',
+                style: TextStyle(
+                  fontSize: 16.0,
+                  color: Colors.grey,
+                  fontWeight: FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+        ),
+        trailing: Text(
+          notification.time,
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 12,
+          ),
+        ),
+        onTap: () {
+          // Xử lý khi người dùng nhấn vào thông báo
+        },
+      ),
+    );
+  }
 }
