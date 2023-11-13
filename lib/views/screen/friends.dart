@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../model/user.dart';
 import 'friend_profile.dart';
 
 class Friends extends StatelessWidget {
@@ -31,7 +32,7 @@ class Friends extends StatelessWidget {
 }
 
 class FriendList extends StatelessWidget {
-  final List<Friend> friendList;
+  final List<User> friendList;
   final bool showAddFriendIcon;
 
   const FriendList({Key? key, required this.friendList, required this.showAddFriendIcon})
@@ -68,7 +69,7 @@ class FriendList extends StatelessWidget {
     );
   }
 
-  void _navigateToFriendProfile(BuildContext context, Friend friend) {
+  void _navigateToFriendProfile(BuildContext context, User friend) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => FriendProfile(friend: friend),
@@ -80,29 +81,15 @@ class FriendList extends StatelessWidget {
 }
 
 // Mô phỏng danh sách bạn bè gợi ý
-final List<Friend> suggestedFriendList = [
-  Friend(name: 'Jane Smith', avatar: 'assets/jane_avatar.jpg', status: 'Online'),
-  Friend(name: 'Bob Johnson', avatar: 'assets/bob_avatar.jpg', status: 'Away'),
+final List<User> suggestedFriendList = [
+  User(name: 'Jane Smith', avatar: 'assets/jane_avatar.jpg', status: 'Online', friendCount: 10),
+  User(name: 'Bob Johnson', avatar: 'assets/bob_avatar.jpg', status: 'Away', friendCount: 10),
   // Thêm danh sách bạn bè gợi ý khác nếu cần
 ];
 
 // Mô phỏng danh sách bạn bè của tôi
-final List<Friend> myFriendList = [
-  Friend(name: 'John Doe', avatar: 'assets/john_avatar.jpg', status: 'Online'),
-  Friend(name: 'Alice Smith', avatar: 'assets/alice_avatar.jpg', status: 'Away'),
+final List<User> myFriendList = [
+  User(name: 'John Doe', avatar: 'assets/john_avatar.jpg', status: 'Online', friendCount: 10),
+  User(name: 'Alice Smith', avatar: 'assets/alice_avatar.jpg', status: 'Away', friendCount: 10),
   // Thêm danh sách bạn bè của tôi khác nếu cần
 ];
-
-class Friend {
-  final String name;
-  final String avatar;
-  final String status;
-  final int friendCount; // Số bạn bè của bạn bè
-
-  Friend({
-    required this.name,
-    required this.avatar,
-    required this.status,
-    this.friendCount = 2,
-  });
-}

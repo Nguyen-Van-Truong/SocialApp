@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:social_app/views/screen/auth/forgot_password.dart';
+import 'package:social_app/views/screen/user_profile.dart';
 import 'package:social_app/views/widgets/MainScreen.dart';
 
 void main() {

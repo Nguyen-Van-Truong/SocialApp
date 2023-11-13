@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:social_app/model/user.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:social_app/views/screen/edit_personal_information.dart';
+import 'package:social_app/views/screen/user_profile.dart';
 
 class Profile extends StatelessWidget {
+  final User user = User(name: 'UserName', avatar: 'assets/images/naruto.jpg', status: '', friendCount: 100);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,9 +21,17 @@ class Profile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: <Widget>[
-                CircleAvatar(
-                  radius: 60,
-                  backgroundImage: AssetImage('assets/images/naruto.jpg'), // Change profile picture
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => UserProfile()), // Chuyển đến màn hình cá nhân người dùng chính
+                    );
+                  },
+                  child: CircleAvatar(
+                    radius: 60,
+                    backgroundImage: AssetImage('assets/images/naruto.jpg'), // Change profile picture
+                  ),
                 ),
                 SizedBox(height: 10.0),
                 Text(
@@ -43,7 +56,12 @@ class Profile extends StatelessWidget {
             leading: Icon(Icons.edit),
             title: Text('Edit Personal Information'),
             onTap: () {
-              // Handle user tap on edit personal information
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditPersonalInformation(user: user),
+                ),
+              );
             },
           ),
           ListTile(

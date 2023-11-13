@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:social_app/views/screen/auth/register.dart';
-import 'package:social_app/views/screen/home.dart';
-import 'package:social_app/views/widgets/MainScreen.dart';
+import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:social_app/views/screen/auth/password_reset_verification.dart';
 
-import 'forgot_password.dart';
 
-class Login extends StatelessWidget {
+class ForgotPassword extends StatelessWidget {
+  final TextEditingController _emailController = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -14,7 +14,7 @@ class Login extends StatelessWidget {
         child: Column(
           children: <Widget>[
             _buildHeader(),
-            _buildLoginForm(context),
+            _buildForgotPasswordForm(context),
           ],
         ),
       ),
@@ -26,50 +26,31 @@ class Login extends StatelessWidget {
       height: 200,
       alignment: Alignment.center,
       child: Text(
-        "Login",
+        "Forgot Password",
         style: TextStyle(
           color: Colors.black,
-          fontSize: 40,
+          fontSize: 30,
           fontWeight: FontWeight.bold,
         ),
       ),
     );
   }
 
-  Widget _buildLoginForm(BuildContext context) {
+  Widget _buildForgotPasswordForm(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(30.0),
       child: Column(
         children: <Widget>[
-          _buildTextField(
-              hintText: "Email or Phone number", obscureText: false),
-          _buildTextField(hintText: "Password", obscureText: true),
+          _buildTextField(hintText: "Email", obscureText: false),
           SizedBox(height: 30),
-          _buildLoginButton(context),
+          _buildResetButton(context),
+          SizedBox(height: 70),
           GestureDetector(
             onTap: () {
-              // Thực hiện điều hướng đến trang quên mật khẩu
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => ForgotPassword()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
             child: Text(
-              "Forgot Password?", // Cập nhật văn bản ở đây
-              style: TextStyle(
-                color: Color.fromRGBO(143, 148, 251, 1),
-                decoration: TextDecoration.underline,
-              ),
-              textAlign: TextAlign.center, // Căn chỉnh văn bản ở giữa
-            ),
-          ),
-          SizedBox(height: 40), // Thêm khoảng cách nếu cần
-          GestureDetector(
-            onTap: () {
-              // Thực hiện điều hướng đến trang đăng ký
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => Register()));
-            },
-            child: Text(
-              "Create Account",
+              "Back to login",
               style: TextStyle(
                 color: Color.fromRGBO(143, 148, 251, 1),
                 decoration: TextDecoration.underline,
@@ -81,13 +62,13 @@ class Login extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(
-      {required String hintText, required bool obscureText}) {
+  Widget _buildTextField({required String hintText, required bool obscureText}) {
     return Container(
       padding: EdgeInsets.all(5),
       margin: EdgeInsets.only(bottom: 15),
       decoration: _textFieldDecoration(),
       child: TextField(
+        controller: _emailController, // Sử dụng controller ở đây
         obscureText: obscureText,
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -113,17 +94,25 @@ class Login extends StatelessWidget {
     );
   }
 
-  Widget _buildLoginButton(BuildContext context) {
+  Widget _buildResetButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Thực hiện điều hướng đến màn hình Home
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => MainScreen()),
-          (Route<dynamic> route) =>
-              false, // This ensures all previous routes are removed
-        );
+      onTap: () async {
+        if (_isValidEmail(_emailController.text)) {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PasswordResetVerification(email: _emailController.text),
+            ),
+          );
+
+          if (result != null && result is String) {
+            _emailController.text = result; // Cập nhật controller với email được chỉnh sửa
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Please enter a valid email address')),
+          );
+        }
       },
       child: Container(
         height: 50,
@@ -138,11 +127,18 @@ class Login extends StatelessWidget {
         ),
         child: Center(
           child: Text(
-            "Login",
+            "Send Request",
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
       ),
     );
+  }
+
+  bool _isValidEmail(String email) {
+    final emailRegex = RegExp(
+      r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
+    );
+    return emailRegex.hasMatch(email);
   }
 }

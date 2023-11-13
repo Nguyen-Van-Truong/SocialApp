@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../model/user.dart';
 import 'friends.dart';
 
 class FriendProfile extends StatelessWidget {
-  final Friend friend;
+  final User friend;
 
   FriendProfile({required this.friend});
 
