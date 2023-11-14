@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:social_app/views/screen/auth/change_password.dart';
 
 class PasswordResetVerification extends StatefulWidget {
   final String email;
@@ -123,9 +124,17 @@ class _PasswordResetVerificationState extends State<PasswordResetVerification> {
         ),
       ),
       child: Center(
-        child: Text(
-          "Verify",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        child: TextButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ChangePassword()),
+            );
+          },
+          child: Text(
+            "Verify",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
       ),
     );

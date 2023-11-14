@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:social_app/model/user.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:social_app/views/screen/auth/change_password.dart';
+import 'package:social_app/views/screen/auth/change_password2.dart';
 import 'package:social_app/views/screen/edit_personal_information.dart';
 import 'package:social_app/views/screen/user_profile.dart';
 
@@ -68,7 +70,12 @@ class Profile extends StatelessWidget {
             leading: Icon(Icons.lock),
             title: Text('Change Password'),
             onTap: () {
-              // Handle user tap on change password
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChangePassword2(),
+                ),
+              );
             },
           ),
           ListTile(
