@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/MainScreen.dart';
+import 'CreatePostScreen.dart';
 
 class Home extends StatelessWidget {
   @override
@@ -50,7 +51,9 @@ class Home extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Xử lý sự kiện khi nút thêm mới được nhấn
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => CreatePostScreen()),
+          );
         },
         child: Icon(Icons.add),
       ),

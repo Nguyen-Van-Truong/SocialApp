@@ -2,10 +2,60 @@ import 'package:flutter/material.dart';
 import 'package:social_app/views/screen/auth/register.dart';
 import 'package:social_app/views/screen/home.dart';
 import 'package:social_app/views/widgets/MainScreen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'forgot_password.dart';
 
 class Login extends StatelessWidget {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  Future<void> _login(BuildContext context) async {
+    var response = await http.post(
+      Uri.parse('http://192.168.1.4/social_app_webservice/api/users/login.php'),
+      body: {
+        'email': _emailController.text,
+        'password': _passwordController.text,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+      if (data['success']) {
+        // Lưu token và user_id vào SharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', data['token']);
+        await prefs.setInt('user_id', data['user_id']);
+
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
+      } else {
+        _showErrorDialog(context, data['message']);
+      }
+    } else {
+      _showErrorDialog(context, 'Lỗi kết nối mạng');
+    }
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Lỗi'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Okay'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,8 +92,13 @@ class Login extends StatelessWidget {
       child: Column(
         children: <Widget>[
           _buildTextField(
-              hintText: "Email or Phone number", obscureText: false),
-          _buildTextField(hintText: "Password", obscureText: true),
+              controller: _emailController,
+              hintText: "Email",
+              obscureText: false),
+          _buildTextField(
+              controller: _passwordController,
+              hintText: "Password",
+              obscureText: true),
           SizedBox(height: 30),
           _buildLoginButton(context),
           GestureDetector(
@@ -81,13 +136,17 @@ class Login extends StatelessWidget {
     );
   }
 
-  Widget _buildTextField(
-      {required String hintText, required bool obscureText}) {
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required bool obscureText,
+  }) {
     return Container(
       padding: EdgeInsets.all(5),
       margin: EdgeInsets.only(bottom: 15),
       decoration: _textFieldDecoration(),
       child: TextField(
+        controller: controller,
         obscureText: obscureText,
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -115,16 +174,7 @@ class Login extends StatelessWidget {
 
   Widget _buildLoginButton(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        // Thực hiện điều hướng đến màn hình Home
-        // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (context) => MainScreen()),
-          (Route<dynamic> route) =>
-              false, // This ensures all previous routes are removed
-        );
-      },
+      onTap: () => _login(context),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
