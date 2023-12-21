@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'forgot_password.dart';
+import 'package:social_app/config.dart';
 
 class Login extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
@@ -14,7 +15,7 @@ class Login extends StatelessWidget {
 
   Future<void> _login(BuildContext context) async {
     var response = await http.post(
-      Uri.parse('http://192.168.1.4/social_app_webservice/api/users/login.php'),
+      Uri.parse('${Config.BASE_URL}/api/users/login.php'),
       body: {
         'email': _emailController.text,
         'password': _passwordController.text,
@@ -29,7 +30,8 @@ class Login extends StatelessWidget {
         await prefs.setString('token', data['token']);
         await prefs.setInt('user_id', data['user_id']);
 
-        Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (context) => MainScreen()));
       } else {
         _showErrorDialog(context, data['message']);
       }
