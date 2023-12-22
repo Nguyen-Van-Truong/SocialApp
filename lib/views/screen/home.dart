@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/MainScreen.dart';
 import 'CreatePostScreen.dart';
 import 'package:http/http.dart' as http;
@@ -68,13 +71,13 @@ class _HomeState extends State<Home> {
           itemCount: posts.length,
           itemBuilder: (context, index) {
             var post = posts[index];
-            List<String> mediaUrls = List<String>.from(
-                post['media_urls'].map((item) => item.toString()));
             return _buildUserPost(
-              post['user_id'].toString(), // Placeholder for user name
-              post['created_at'], // Example: '35 min ago'
-              mediaUrls,
+              post['user_id'].toString(),
+              post['created_at'],
+              List<String>.from(
+                  post['media_urls'].map((item) => item.toString())),
               post['content'],
+              post['post_id'],
             );
           },
         ),
@@ -90,13 +93,14 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildUserPost(String name, String timeAgo, List<String> mediaUrls, String postText) {
+  Widget _buildUserPost(String name, String timeAgo, List<String> mediaUrls,
+      String postText, int postId) {
     return Column(
       children: <Widget>[
         _buildPostHeader(name, timeAgo),
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
-        _buildPostActions(),
+        _buildPostActions(postId),
         Divider(),
       ],
     );
@@ -153,22 +157,29 @@ class _HomeState extends State<Home> {
   void _showFullImage(BuildContext context, String imageUrl) {
     showDialog(
       context: context,
-      builder: (_) => Dialog(child: Image.network("${Config.BASE_URL}/" + imageUrl)),
+      builder: (_) =>
+          Dialog(child: Image.network("${Config.BASE_URL}/" + imageUrl)),
     );
   }
 
-  Widget _buildPostActions() {
+  Widget _buildPostActions(int postId) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        _buildActionButton(Icons.thumb_up, 'Like', () {/* Handle Like */}),
-        _buildActionButton(Icons.comment, 'Comment', () {/* Handle Comment */}),
-        _buildActionButton(Icons.share, 'Share', () {/* Handle Share */}),
+        _buildActionButton(Icons.thumb_up, 'Like', () {
+          /* Handle Like */
+        }),
+        _buildActionButton(
+            Icons.comment, 'Comment', () => _showCommentsDialog(postId)),
+        _buildActionButton(Icons.share, 'Share', () {
+          /* Handle Share */
+        }),
       ],
     );
   }
 
-  Widget _buildActionButton(IconData icon, String text, VoidCallback onPressed) {
+  Widget _buildActionButton(
+      IconData icon, String text, VoidCallback onPressed) {
     return Row(
       children: <Widget>[
         IconButton(icon: Icon(icon), onPressed: onPressed),
@@ -177,5 +188,143 @@ class _HomeState extends State<Home> {
     );
   }
 
+  // Method to show comments in a dialog
+  Future<void> _showCommentsDialog(int postId) async {
+    TextEditingController commentController = TextEditingController();
+    XFile? selectedImage;
+    final ImagePicker picker = ImagePicker();
+    List<dynamic> comments = await _fetchComments(postId);
 
+    Future<void> selectImage() async {
+      final XFile? pickedFile =
+          await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        setState(() {
+          selectedImage = pickedFile;
+        });
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Comments'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: commentController,
+                      decoration:
+                          InputDecoration(hintText: 'Write a comment...'),
+                    ),
+                    SizedBox(height: 10),
+                    if (selectedImage != null)
+                      Image.file(File(selectedImage!.path)),
+                    ElevatedButton(
+                      onPressed: selectImage,
+                      child: Text('Select Image'),
+                    ),
+                    ...comments.map((comment) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          ListTile(
+                            title: Text(comment['user_id'].toString()),
+                            subtitle: Text(comment['comment']),
+                          ),
+                          if (comment['file_url'] != null)
+                            GestureDetector(
+                              onTap: () =>
+                                  _showFullImage(context, comment['file_url']),
+                              child: Image.network(
+                                  "${Config.BASE_URL}/" + comment['file_url']),
+                            ),
+                          SizedBox(height: 10),
+                        ],
+                      );
+                    }).toList(),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Post Comment'),
+                  onPressed: () async {
+                    await _postComment(postId, commentController.text,
+                        commentController, selectedImage);
+                    var updatedComments = await _fetchComments(postId);
+                    setState(() {
+                      comments = updatedComments;
+                      commentController.clear();
+                      selectedImage = null;
+                    });
+                  },
+                ),
+                TextButton(
+                  child: Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Method to fetch comments from the server
+  Future<List<dynamic>> _fetchComments(int postId) async {
+    var url = Uri.parse(
+        '${Config.BASE_URL}/api/comments/getComments.php?postId=$postId');
+    var response = await http.get(url);
+    print('${Config.BASE_URL}/api/posts/getComments.php?postId=$postId');
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}'); // Print the raw response body
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      return jsonData['comments'];
+    } else {
+      throw Exception('Failed to load comments');
+    }
+  }
+
+  Future<void> _postComment(int postId, String comment,
+      TextEditingController commentController, XFile? imageFile) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+
+    var request = http.MultipartRequest(
+        'POST', Uri.parse('${Config.BASE_URL}/api/comments/postComment.php'));
+    request.fields['postId'] = postId.toString();
+    request.fields['userId'] = userId.toString();
+    request.fields['comment'] = comment;
+
+    if (imageFile != null) {
+      request.files
+          .add(await http.MultipartFile.fromPath('media', imageFile.path));
+    }
+
+    var streamedResponse = await request.send();
+    var response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      if (jsonData['success']) {
+        print('Comment posted successfully');
+      } else {
+        print('Failed to post comment: ${jsonData['message']}');
+      }
+    } else {
+      print('Failed to connect to the server');
+    }
+
+    commentController.clear();
+  }
 }
