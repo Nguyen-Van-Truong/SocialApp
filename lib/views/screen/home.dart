@@ -195,35 +195,50 @@ class _HomeState extends State<Home> {
     final ImagePicker picker = ImagePicker();
     List<dynamic> comments = await _fetchComments(postId);
 
-    Future<void> selectImage() async {
-      final XFile? pickedFile =
-          await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile != null) {
-        setState(() {
-          selectedImage = pickedFile;
-        });
-      }
-    }
-
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, StateSetter dialogSetState) {
+            Future<void> selectImage() async {
+              final XFile? pickedFile =
+                  await picker.pickImage(source: ImageSource.gallery);
+              if (pickedFile != null) {
+                dialogSetState(() {
+                  selectedImage = pickedFile;
+                });
+              }
+            }
+
+            Future<void> handlePostComment() async {
+              await _postComment(postId, commentController.text,
+                  commentController, selectedImage);
+              var updatedComments = await _fetchComments(postId);
+              dialogSetState(() {
+                comments = updatedComments;
+                commentController.clear();
+                selectedImage = null;
+              });
+            }
+
             return AlertDialog(
               title: Text('Comments'),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (selectedImage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: Image.file(File(selectedImage!.path),
+                            height: 100, width: 100),
+                      ),
                     TextField(
                       controller: commentController,
                       decoration:
                           InputDecoration(hintText: 'Write a comment...'),
                     ),
                     SizedBox(height: 10),
-                    if (selectedImage != null)
-                      Image.file(File(selectedImage!.path)),
                     ElevatedButton(
                       onPressed: selectImage,
                       child: Text('Select Image'),
@@ -253,16 +268,7 @@ class _HomeState extends State<Home> {
               actions: <Widget>[
                 TextButton(
                   child: Text('Post Comment'),
-                  onPressed: () async {
-                    await _postComment(postId, commentController.text,
-                        commentController, selectedImage);
-                    var updatedComments = await _fetchComments(postId);
-                    setState(() {
-                      comments = updatedComments;
-                      commentController.clear();
-                      selectedImage = null;
-                    });
-                  },
+                  onPressed: handlePostComment,
                 ),
                 TextButton(
                   child: Text('Close'),
@@ -283,10 +289,6 @@ class _HomeState extends State<Home> {
     var url = Uri.parse(
         '${Config.BASE_URL}/api/comments/getComments.php?postId=$postId');
     var response = await http.get(url);
-    print('${Config.BASE_URL}/api/posts/getComments.php?postId=$postId');
-    print('Response status: ${response.statusCode}');
-    print('Response body: ${response.body}'); // Print the raw response body
-
     if (response.statusCode == 200) {
       var jsonData = json.decode(response.body);
       return jsonData['comments'];
