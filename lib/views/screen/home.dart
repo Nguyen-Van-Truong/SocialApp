@@ -106,15 +106,15 @@ class _HomeState extends State<Home> {
             if (index < posts.length) {
               var post = posts[index];
               return _buildUserPost(
-                post['username'],
-                post['created_at'],
-                List<String>.from(
-                    post['media_urls'].map((item) => item.toString())),
-                post['content'],
-                post['post_id'],
-                post['isLiked'],
-                post['likeCount'],
-              );
+                  post['username'],
+                  post['created_at'],
+                  List<String>.from(
+                      post['media_urls'].map((item) => item.toString())),
+                  post['content'],
+                  post['post_id'],
+                  post['isLiked'],
+                  post['likeCount'],
+                  post['commentCount']);
             } else if (!isLoading) {
               fetchPosts(); // Fetch more posts
               return Center(
@@ -137,15 +137,21 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildUserPost(String username, String timeAgo, List<String> mediaUrls,
-      String postText, int postId, bool isLiked, int likeCount) {
+  Widget _buildUserPost(
+      String username,
+      String timeAgo,
+      List<String> mediaUrls,
+      String postText,
+      int postId,
+      bool isLiked,
+      int likeCount,
+      int commentCount) {
     return Column(
       children: <Widget>[
         _buildPostHeader(username, timeAgo),
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
-        _buildPostActions(postId, isLiked, likeCount),
-        // Pass the additional parameters
+        _buildPostActions(postId, isLiked, likeCount, commentCount),
         Divider(),
       ],
     );
@@ -163,7 +169,7 @@ class _HomeState extends State<Home> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(username, style: TextStyle(fontWeight: FontWeight.bold)), // Display username
+              Text(username, style: TextStyle(fontWeight: FontWeight.bold)),
               Text(timeAgo),
             ],
           ),
@@ -207,21 +213,46 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildPostActions(int postId, bool isLiked, int likeCount) {
+  Widget _buildPostActions(
+      int postId, bool isLiked, int likeCount, int commentCount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        IconButton(
-          icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
-              color: isLiked ? Colors.blue : Colors.grey),
-          onPressed: () => _handleLike(postId, isLiked),
+        Row(
+          children: <Widget>[
+            IconButton(
+              icon: Icon(
+                isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+                color: isLiked ? Colors.blue : Colors.grey,
+              ),
+              onPressed: () => _handleLike(postId, isLiked),
+            ),
+            SizedBox(width: 1),
+            Text('$likeCount Likes'),
+          ],
         ),
-        Text('$likeCount Like'),
-        _buildActionButton(
-            Icons.comment, 'Comment', () => _showCommentsDialog(postId)),
-        _buildActionButton(Icons.share, 'Share', () {
-          /* Handle Share */
-        }),
+        Row(
+          children: <Widget>[
+            IconButton(
+              icon: Icon(Icons.comment, color: Colors.blue),
+              onPressed: () => _showCommentsDialog(postId),
+            ),
+            SizedBox(width: 1),
+            Text('$commentCount Comments'),
+          ],
+        ),
+        Row(
+          children: <Widget>[
+            IconButton(
+              icon: Icon(Icons.share, color: Colors.blue),
+              onPressed: () {
+                /* Handle Share */
+              },
+            ),
+            SizedBox(width: 1),
+            Text('Share'),
+          ],
+        ),
       ],
     );
   }
