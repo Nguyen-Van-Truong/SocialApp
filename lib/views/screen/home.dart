@@ -15,7 +15,10 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  List<dynamic> posts = []; // List to store post data
+  List<dynamic> posts = [];
+  int currentPage = 0;
+  bool isLoading = false;
+  final int limit = 2;
 
   @override
   void initState() {
@@ -23,37 +26,61 @@ class _HomeState extends State<Home> {
     fetchPosts();
   }
 
-  Future<void> fetchPosts() async {
+  Future<void> fetchPosts({bool refresh = false}) async {
+    if (refresh) {
+      currentPage = 0;
+    }
+
+    if (isLoading) {
+      return; // Prevent duplicate calls
+    }
+
+    isLoading = true;
+
+    // Introduce a delay of 1 seconds
+    await Future.delayed(Duration(seconds: 1));
+
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       var url = Uri.parse('${Config.BASE_URL}/api/posts/getFriendPosts.php');
-      var response = await http.post(url, body: {'userId': userId.toString()});
+      var response = await http.post(url, body: {
+        'userId': userId.toString(),
+        'page': currentPage.toString(),
+        'limit': limit.toString()
+      });
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
 
         if (jsonData['success']) {
-          setState(() {
-            posts = jsonData['posts'].map((post) {
-              bool isLikedConverted = post['isLiked'] == 1;
-              post['isLiked'] = isLikedConverted;
-              return post;
-            }).toList();
+          List<dynamic> newPosts = jsonData['posts'].map((post) {
+            bool isLikedConverted = post['isLiked'] == 1;
+            post['isLiked'] = isLikedConverted;
+            return post;
+          }).toList();
 
-          });
+          if (refresh) {
+            posts = newPosts;
+          } else {
+            posts.addAll(newPosts);
+          }
+
+          currentPage++;
+          setState(() {});
         }
       } else {
         print('Failed to load posts');
       }
     } catch (e) {
       print('Error: $e');
+    } finally {
+      isLoading = false;
     }
   }
 
   Future<void> _onRefresh() async {
-    // Implement your logic to fetch new posts
-    await fetchPosts();
+    await fetchPosts(refresh: true);
   }
 
   @override
@@ -74,20 +101,28 @@ class _HomeState extends State<Home> {
       body: RefreshIndicator(
         onRefresh: _onRefresh,
         child: ListView.builder(
-          itemCount: posts.length,
+          itemCount: posts.length + 1,
           itemBuilder: (context, index) {
-            var post = posts[index];
-            return _buildUserPost(
-              post['user_id'].toString(),
-              post['created_at'],
-              List<String>.from(
-                  post['media_urls'].map((item) => item.toString())),
-              post['content'],
-              post['post_id'],
-              post['isLiked'],
-              // Convert integer to boolean
-              post['likeCount'],
-            );
+            if (index < posts.length) {
+              var post = posts[index];
+              return _buildUserPost(
+                post['username'],
+                post['created_at'],
+                List<String>.from(
+                    post['media_urls'].map((item) => item.toString())),
+                post['content'],
+                post['post_id'],
+                post['isLiked'],
+                post['likeCount'],
+              );
+            } else if (!isLoading) {
+              fetchPosts(); // Fetch more posts
+              return Center(
+                child: CircularProgressIndicator(),
+              );
+            } else {
+              return SizedBox(); // No more data
+            }
           },
         ),
       ),
@@ -102,11 +137,11 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildUserPost(String name, String timeAgo, List<String> mediaUrls,
+  Widget _buildUserPost(String username, String timeAgo, List<String> mediaUrls,
       String postText, int postId, bool isLiked, int likeCount) {
     return Column(
       children: <Widget>[
-        _buildPostHeader(name, timeAgo),
+        _buildPostHeader(username, timeAgo),
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
         _buildPostActions(postId, isLiked, likeCount),
@@ -116,7 +151,7 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildPostHeader(String name, String timeAgo) {
+  Widget _buildPostHeader(String username, String timeAgo) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
@@ -128,7 +163,7 @@ class _HomeState extends State<Home> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              Text(name, style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(username, style: TextStyle(fontWeight: FontWeight.bold)), // Display username
               Text(timeAgo),
             ],
           ),
@@ -181,7 +216,7 @@ class _HomeState extends State<Home> {
               color: isLiked ? Colors.blue : Colors.grey),
           onPressed: () => _handleLike(postId, isLiked),
         ),
-        Text('$likeCount Like${likeCount != 1 ? 's' : ''}'),
+        Text('$likeCount Like'),
         _buildActionButton(
             Icons.comment, 'Comment', () => _showCommentsDialog(postId)),
         _buildActionButton(Icons.share, 'Share', () {
@@ -290,7 +325,7 @@ class _HomeState extends State<Home> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           ListTile(
-                            title: Text(comment['user_id'].toString()),
+                            title: Text(comment['username']),
                             subtitle: Text(comment['comment']),
                           ),
                           if (comment['file_url'] != null)
