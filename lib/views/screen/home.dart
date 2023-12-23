@@ -32,9 +32,15 @@ class _HomeState extends State<Home> {
 
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
+
         if (jsonData['success']) {
           setState(() {
-            posts = jsonData['posts'];
+            posts = jsonData['posts'].map((post) {
+              bool isLikedConverted = post['isLiked'] == 1;
+              post['isLiked'] = isLikedConverted;
+              return post;
+            }).toList();
+
           });
         }
       } else {
@@ -78,6 +84,9 @@ class _HomeState extends State<Home> {
                   post['media_urls'].map((item) => item.toString())),
               post['content'],
               post['post_id'],
+              post['isLiked'],
+              // Convert integer to boolean
+              post['likeCount'],
             );
           },
         ),
@@ -94,13 +103,14 @@ class _HomeState extends State<Home> {
   }
 
   Widget _buildUserPost(String name, String timeAgo, List<String> mediaUrls,
-      String postText, int postId) {
+      String postText, int postId, bool isLiked, int likeCount) {
     return Column(
       children: <Widget>[
         _buildPostHeader(name, timeAgo),
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
-        _buildPostActions(postId),
+        _buildPostActions(postId, isLiked, likeCount),
+        // Pass the additional parameters
         Divider(),
       ],
     );
@@ -162,13 +172,16 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildPostActions(int postId) {
+  Widget _buildPostActions(int postId, bool isLiked, int likeCount) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: <Widget>[
-        _buildActionButton(Icons.thumb_up, 'Like', () {
-          /* Handle Like */
-        }),
+        IconButton(
+          icon: Icon(isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+              color: isLiked ? Colors.blue : Colors.grey),
+          onPressed: () => _handleLike(postId, isLiked),
+        ),
+        Text('$likeCount Like${likeCount != 1 ? 's' : ''}'),
         _buildActionButton(
             Icons.comment, 'Comment', () => _showCommentsDialog(postId)),
         _buildActionButton(Icons.share, 'Share', () {
@@ -176,6 +189,35 @@ class _HomeState extends State<Home> {
         }),
       ],
     );
+  }
+
+  Future<void> _handleLike(int postId, bool isLiked) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+
+    String endpoint = isLiked ? 'unlikePost.php' : 'likePost.php';
+    var url = Uri.parse('${Config.BASE_URL}/api/likes/$endpoint');
+
+    var response = await http.post(url, body: {
+      'userId': userId.toString(),
+      'postId': postId.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+
+      if (jsonData['success']) {
+        int postIndex = posts.indexWhere((p) => p['post_id'] == postId);
+        if (postIndex != -1) {
+          setState(() {
+            posts[postIndex]['isLiked'] = !isLiked;
+            posts[postIndex]['likeCount'] += isLiked ? -1 : 1;
+          });
+        }
+      }
+    } else {
+      print('Error liking/unliking post');
+    }
   }
 
   Widget _buildActionButton(
