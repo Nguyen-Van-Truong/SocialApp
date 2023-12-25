@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:social_app/config.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
 
 class Register extends StatefulWidget {
@@ -7,7 +10,61 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
   String gender = 'Male';
+
+  Future<void> _registerUser(BuildContext context) async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      _showErrorDialog(context, "Passwords do not match");
+      return;
+    }
+
+    var response = await http.post(
+      Uri.parse('${Config.BASE_URL}/api/users/register.php'),
+      body: {
+        'username': _nameController.text,
+        'email': _emailController.text,
+        'password': _passwordController.text,
+        'gender': gender == 'Male' ? '1' : '2',
+        'bio': '', // Assuming bio is optional
+      },
+    );
+
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+      if (data['success']) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => Login()),
+        );
+      } else {
+        _showErrorDialog(context, data['message']);
+      }
+    } else {
+      _showErrorDialog(context, 'Lỗi kết nối mạng');
+    }
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Lỗi'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Okay'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +74,7 @@ class _RegisterState extends State<Register> {
         child: Column(
           children: <Widget>[
             _buildHeader(),
-            _buildRegistrationForm(),
+            _buildRegistrationForm(context),
           ],
         ),
       ),
@@ -39,22 +96,24 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  Widget _buildRegistrationForm() {
+  Widget _buildRegistrationForm(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(30.0),
       child: Column(
         children: <Widget>[
-          _buildTextField(hintText: "Name", obscureText: false),
+          _buildTextField(controller: _nameController, hintText: "Name", obscureText: false),
           _buildGenderSelection(),
-          _buildTextField(hintText: "Email", obscureText: false),
-          _buildTextField(hintText: "Password", obscureText: true),
-          _buildTextField(hintText: "Confirm password", obscureText: true),
+          _buildTextField(controller: _emailController, hintText: "Email", obscureText: false),
+          _buildTextField(controller: _passwordController, hintText: "Password", obscureText: true),
+          _buildTextField(controller: _confirmPasswordController, hintText: "Confirm Password", obscureText: true),
           SizedBox(height: 30),
-          _buildRegisterButton(),
+          GestureDetector(
+            onTap: () => _registerUser(context),
+            child: _buildRegisterButton(),
+          ),
           SizedBox(height: 30),
           GestureDetector(
             onTap: () {
-              // Điều hướng đến trang đăng nhập
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
             child: Text(
@@ -70,12 +129,13 @@ class _RegisterState extends State<Register> {
     );
   }
 
-  Widget _buildTextField({required String hintText, required bool obscureText}) {
+  Widget _buildTextField({required TextEditingController controller, required String hintText, required bool obscureText}) {
     return Container(
       padding: EdgeInsets.all(5),
       margin: EdgeInsets.only(bottom: 15),
       decoration: _textFieldDecoration(),
       child: TextField(
+        controller: controller,
         obscureText: obscureText,
         decoration: InputDecoration(
           border: InputBorder.none,

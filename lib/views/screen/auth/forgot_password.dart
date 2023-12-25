@@ -1,10 +1,55 @@
 import 'package:flutter/material.dart';
-import 'package:social_app/views/screen/auth/Login.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:social_app/config.dart';
 import 'package:social_app/views/screen/auth/password_reset_verification.dart';
-
+import 'package:social_app/views/screen/auth/login.dart';
 
 class ForgotPassword extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
+
+  Future<void> _sendVerificationCode(BuildContext context) async {
+    var response = await http.post(
+      Uri.parse('${Config.BASE_URL}/api/users/forgotPassword.php'),
+      body: {
+        'email': _emailController.text,
+      },
+    );
+
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+      if (data['success']) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PasswordResetVerification(email: _emailController.text),
+          ),
+        );
+      } else {
+        _showErrorDialog(context, data['message']);
+      }
+    } else {
+      _showErrorDialog(context, 'Network error occurred');
+    }
+  }
+
+  void _showErrorDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Error'),
+        content: Text(message),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Okay'),
+            onPressed: () {
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +113,7 @@ class ForgotPassword extends StatelessWidget {
       margin: EdgeInsets.only(bottom: 15),
       decoration: _textFieldDecoration(),
       child: TextField(
-        controller: _emailController, // Sử dụng controller ở đây
+        controller: _emailController,
         obscureText: obscureText,
         decoration: InputDecoration(
           border: InputBorder.none,
@@ -96,24 +141,7 @@ class ForgotPassword extends StatelessWidget {
 
   Widget _buildResetButton(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        if (_isValidEmail(_emailController.text)) {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PasswordResetVerification(email: _emailController.text),
-            ),
-          );
-
-          if (result != null && result is String) {
-            _emailController.text = result; // Cập nhật controller với email được chỉnh sửa
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Please enter a valid email address')),
-          );
-        }
-      },
+      onTap: () => _sendVerificationCode(context),
       child: Container(
         height: 50,
         decoration: BoxDecoration(
@@ -133,12 +161,5 @@ class ForgotPassword extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  bool _isValidEmail(String email) {
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9.]+@[a-zA-Z0-9]+\.[a-zA-Z]+',
-    );
-    return emailRegex.hasMatch(email);
   }
 }

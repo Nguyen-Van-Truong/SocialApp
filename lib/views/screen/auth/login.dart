@@ -29,6 +29,7 @@ class Login extends StatelessWidget {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setInt('user_id', data['user_id']);
+        await prefs.setString('email', data['email']);
 
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => MainScreen()));
@@ -121,7 +122,6 @@ class Login extends StatelessWidget {
           SizedBox(height: 40), // Thêm khoảng cách nếu cần
           GestureDetector(
             onTap: () {
-              // Thực hiện điều hướng đến trang đăng ký
               Navigator.push(
                   context, MaterialPageRoute(builder: (context) => Register()));
             },
