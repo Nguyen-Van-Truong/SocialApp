@@ -1,14 +1,15 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:social_app/views/screen/chat_group.dart';
 import 'chat_info.dart';
 import 'package:http/http.dart' as http;
 class Chat extends StatelessWidget  {
 
   Future<List<FriendItem>> fetchFriends(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    //int userId = prefs.getInt('user_id') ?? 0;
-    int userId = 1;
+    int userId = prefs.getInt('user_id') ?? 0;
+    // int userId = 1;
     final response = await http.get(
         Uri.parse('http://192.168.209.35//social_app_webservice/api/messages/getFriendsListMessage.php?userId='+userId.toString()+'&sortOrder=recent'));
 
@@ -21,6 +22,7 @@ class Chat extends StatelessWidget  {
             id: friendData['user_id'].toString(),
             username: friendData['username'],
             file_url: friendData['file_url'] ?? "null",
+            lastMessage: friendData['latest_message'] ,
             onTap: () {
             _navigateToChatInfo(context, friendData['user_id'].toString());
             },
@@ -34,7 +36,36 @@ class Chat extends StatelessWidget  {
       throw Exception('Failed to load friends');
     }
   }
+  Future<List<GroupItem>> fetchGroups(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+    // int userId = 1;
+    final response = await http.get(
+        Uri.parse('http://192.168.209.35//social_app_webservice/api/group_messages/getGroupList.php?userId='+userId.toString()+'&sortOrder=recent'));
 
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      if (data['success']) {
+        List<GroupItem> friends = [];
+        for (var friendData in data['groups']) {
+          friends.add(GroupItem(
+            id: friendData['group_id'].toString(),
+            groupName: friendData['name'],
+            file_url: friendData['file_url'] ?? "null",
+            lastMessage: friendData['last_message'],
+            onTap: () {
+              _navigateToChatGroup(context, friendData['group_id'].toString());
+            },
+          ));
+        }
+        return friends;
+      } else {
+        throw Exception('Failed to load friends');
+      }
+    } else {
+      throw Exception('Failed to load friends');
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -79,16 +110,23 @@ class Chat extends StatelessWidget  {
               },
             ),
             // Nội dung cho tab Groups
-            ListView(
-              children: <Widget>[
-                GroupItem(
-                  groupName: 'Flutter Devs',
-                  lastMessage: 'We have a meeting tomorrow guys!',
-                  time: '1 hr ago',
-                  messageCount: 2,
-                ),
-                // Có thể thêm nhiều GroupItem khác tại đây
-              ],
+            FutureBuilder(
+              future: fetchGroups(context),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator();
+                } else if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                } else {
+                  List<GroupItem>? friends = snapshot.data;
+                  return ListView.builder(
+                    itemCount: friends?.length,
+                    itemBuilder: (context, index) {
+                      return friends?[index];
+                    },
+                  );
+                }
+              },
             ),
           ],
         ),
@@ -109,8 +147,15 @@ class Chat extends StatelessWidget  {
       ),
     );
   }
-}
 
+  void _navigateToChatGroup(BuildContext context, String groupId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => ChatGroup(groupId :groupId),
+      ),
+    );
+  }
+}
 
 class ChatItem extends StatelessWidget {
   final String name;
@@ -161,6 +206,7 @@ class FriendItem extends StatelessWidget {
   final String id;
   final String username;
   final String file_url;
+  final String lastMessage;
   final VoidCallback onTap; // Thêm thuộc tính onTap
 
   const FriendItem({
@@ -168,6 +214,7 @@ class FriendItem extends StatelessWidget {
     required this.id,
     required this.username,
     required this.file_url,
+    required this.lastMessage,
     required this.onTap, // Truyền hàm onTap vào
   }) : super(key: key);
 
@@ -179,7 +226,7 @@ class FriendItem extends StatelessWidget {
         backgroundImage: file_url != "null" ? AssetImage(file_url!) : AssetImage('assets/images/naruto.jpg'),
       ),
       title: Text(username),
-      subtitle: Text(""),
+      subtitle: Text(lastMessage),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
@@ -192,41 +239,35 @@ class FriendItem extends StatelessWidget {
 }
 
 class GroupItem extends StatelessWidget {
+  final String id;
   final String groupName;
   final String lastMessage;
-  final String time;
-  final int messageCount;
+  final String file_url;
+  final VoidCallback onTap;
 
   const GroupItem({
     Key? key,
+    required this.id,
     required this.groupName,
     required this.lastMessage,
-    required this.time,
-    required this.messageCount,
+    required this.file_url,
+    required this.onTap,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
+      onTap: onTap,
       leading: CircleAvatar(
-        backgroundImage: AssetImage('assets/images/group_icon.png'), // Thay thế với icon nhóm của bạn
+        backgroundImage: file_url != "null" ? AssetImage(file_url!) : AssetImage('assets/images/naruto.jpg'),
       ),
       title: Text(groupName),
       subtitle: Text(lastMessage),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Text(time),
+          Text(""),
           SizedBox(height: 4.0),
-          if (messageCount > 0)
-            CircleAvatar(
-              radius: 12.0,
-              backgroundColor: Colors.red,
-              child: Text(
-                messageCount.toString(),
-                style: TextStyle(color: Colors.white, fontSize: 12.0),
-              ),
-            ),
         ],
       ),
     );

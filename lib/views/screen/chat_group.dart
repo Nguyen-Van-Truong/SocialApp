@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-class ChatInfo extends StatefulWidget {
-  final String receiverId;
-  ChatInfo({required this.receiverId});
+class ChatGroup extends StatefulWidget {
+  final String groupId;
+  ChatGroup({required this.groupId});
   @override
-  _ChatInfoState createState() => _ChatInfoState();
+  _ChatGroupState createState() => _ChatGroupState();
 }
 
 class Message {
@@ -16,7 +16,7 @@ class Message {
   Message(this.text, this.isMe);
 }
 
-class _ChatInfoState extends State<ChatInfo> {
+class _ChatGroupState extends State<ChatGroup> {
   List<Message> _messages = [];
   ScrollController _scrollController = ScrollController();
 
@@ -34,11 +34,13 @@ class _ChatInfoState extends State<ChatInfo> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/read.php');
+      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/group_messages/getGroupMessages.php');
 
       var response = await http.post(url, body: {
-        'user1': userId.toString(),
-        'user2': widget.receiverId.toString(),
+        'userId': userId.toString(),
+        'groupId': widget.groupId.toString(),
+        'limit': "10",
+      'page':"0",
       });
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
@@ -46,7 +48,7 @@ class _ChatInfoState extends State<ChatInfo> {
           if(messageData['sender_id'].toString()==userId.toString()){
             _messages.add(Message(messageData['message'].toString(), true));
           }
-          if(messageData['sender_id'].toString()==widget.receiverId.toString()){
+          if(messageData['sender_id'].toString()!=userId.toString()){
             _messages.add(Message(messageData['message'].toString(), false));
           }
         }
@@ -65,11 +67,10 @@ class _ChatInfoState extends State<ChatInfo> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/sendMessage.php');
-
+      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/group_messages/sendMessage.php');
       var response = await http.post(url, body: {
         'senderId': userId.toString(),
-        'receiverId': widget.receiverId.toString(),
+        'groupId': widget.groupId.toString(),
         'message': message.toString(),
       });
 
@@ -101,6 +102,14 @@ class _ChatInfoState extends State<ChatInfo> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Thông tin cuộc trò chuyện'),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.more_vert),
+              onPressed: () {
+                // More actions
+              },
+            ),
+          ]
       ),
       body: Column(
         children: <Widget>[
