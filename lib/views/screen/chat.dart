@@ -1,7 +1,40 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'chat_info.dart';
+import 'package:http/http.dart' as http;
+class Chat extends StatelessWidget  {
 
-class Chat extends StatelessWidget {
+  Future<List<FriendItem>> fetchFriends(BuildContext context) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    //int userId = prefs.getInt('user_id') ?? 0;
+    int userId = 1;
+    final response = await http.get(
+        Uri.parse('http://192.168.209.35//social_app_webservice/api/messages/getFriendsListMessage.php?userId='+userId.toString()+'&sortOrder=recent'));
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      if (data['success']) {
+        List<FriendItem> friends = [];
+        for (var friendData in data['friends']) {
+          friends.add(FriendItem(
+            id: friendData['user_id'].toString(),
+            username: friendData['username'],
+            file_url: friendData['file_url'] ?? "null",
+            onTap: () {
+            _navigateToChatInfo(context, friendData['user_id'].toString());
+            },
+          ));
+        }
+        return friends;
+      } else {
+        throw Exception('Failed to load friends');
+      }
+    } else {
+      throw Exception('Failed to load friends');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -27,19 +60,23 @@ class Chat extends StatelessWidget {
         body: TabBarView(
           children: [
             // Nội dung cho tab Messages
-            ListView(
-              children: <Widget>[
-                ChatItem(
-                  name: 'Kurt Toms',
-                  message: 'Are you angry at something?',
-                  time: '34 min ago',
-                  messageCount: 4,
-                  onTap: () {
-                    _navigateToChatInfo(context);
-                  },
-                ),
-                // Có thể thêm nhiều ChatItem khác tại đây
-              ],
+            FutureBuilder(
+              future: fetchFriends(context),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircularProgressIndicator();
+                } else if (snapshot.hasError) {
+                  return Text('Error: ${snapshot.error}');
+                } else {
+                  List<FriendItem>? friends = snapshot.data;
+                  return ListView.builder(
+                    itemCount: friends?.length,
+                    itemBuilder: (context, index) {
+                      return friends?[index];
+                    },
+                  );
+                }
+              },
             ),
             // Nội dung cho tab Groups
             ListView(
@@ -65,14 +102,15 @@ class Chat extends StatelessWidget {
     );
   }
 
-  void _navigateToChatInfo(BuildContext context) {
+  void _navigateToChatInfo(BuildContext context, String receiverId) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChatInfo(),
+        builder: (context) => ChatInfo(receiverId :receiverId),
       ),
     );
   }
 }
+
 
 class ChatItem extends StatelessWidget {
   final String name;
@@ -113,6 +151,40 @@ class ChatItem extends StatelessWidget {
                 style: TextStyle(color: Colors.white, fontSize: 12.0),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class FriendItem extends StatelessWidget {
+  final String id;
+  final String username;
+  final String file_url;
+  final VoidCallback onTap; // Thêm thuộc tính onTap
+
+  const FriendItem({
+    Key? key,
+    required this.id,
+    required this.username,
+    required this.file_url,
+    required this.onTap, // Truyền hàm onTap vào
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      onTap: onTap, // Gọi hàm onTap khi người dùng bấm vào ListTile
+      leading: CircleAvatar(
+        backgroundImage: file_url != "null" ? AssetImage(file_url!) : AssetImage('assets/images/naruto.jpg'),
+      ),
+      title: Text(username),
+      subtitle: Text(""),
+      trailing: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(""),
+          SizedBox(height: 4.0),
         ],
       ),
     );
