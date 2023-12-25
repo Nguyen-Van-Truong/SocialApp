@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
 import 'package:social_app/views/screen/auth/forgot_password.dart';
 import 'package:social_app/views/screen/chat_info.dart';
+import 'package:social_app/views/screen/detail_chat_group.dart';
 import 'package:social_app/views/screen/user_profile.dart';
 import 'package:social_app/views/widgets/MainScreen.dart';
 import 'package:social_app/views/screen/chat_info.dart';
@@ -14,7 +15,8 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SocialApp',
-      home: Login(),
+      home:Login(),
+
     );
   }
 }

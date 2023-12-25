@@ -223,7 +223,7 @@ class FriendItem extends StatelessWidget {
     return ListTile(
       onTap: onTap, // Gọi hàm onTap khi người dùng bấm vào ListTile
       leading: CircleAvatar(
-        backgroundImage: file_url != "null" ? AssetImage(file_url!) : AssetImage('assets/images/naruto.jpg'),
+        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("http://192.168.209.35/social_app_webservice/uploads/1_1702953146.jpg"),
       ),
       title: Text(username),
       subtitle: Text(lastMessage),
@@ -259,7 +259,7 @@ class GroupItem extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundImage: file_url != "null" ? AssetImage(file_url!) : AssetImage('assets/images/naruto.jpg'),
+        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("http://192.168.209.35/social_app_webservice/uploads/1_1702953146.jpg"),
       ),
       title: Text(groupName),
       subtitle: Text(lastMessage),
