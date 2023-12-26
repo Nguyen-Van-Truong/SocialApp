@@ -130,7 +130,7 @@ class _ChatGroupState extends State<ChatGroup> {
         title: Text(nameGroup),
         actions: [
           CircleAvatar(
-            backgroundImage: imageGroup!="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ imageGroup) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
+            backgroundImage: imageGroup!="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ imageGroup!) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
           ),
           IconButton(
             icon: Icon(Icons.info_outline),
