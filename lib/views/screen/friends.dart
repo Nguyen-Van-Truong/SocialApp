@@ -1,9 +1,45 @@
 import 'package:flutter/material.dart';
-
-import '../../model/user.dart';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import '../../config.dart';
 import 'friend_profile.dart';
 
-class Friends extends StatelessWidget {
+class Friends extends StatefulWidget {
+  @override
+  _FriendsState createState() => _FriendsState();
+}
+
+class _FriendsState extends State<Friends> {
+  List<Map<String, dynamic>> myFriendList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchFriends();
+  }
+
+  Future<void> _fetchFriends() async {
+    final prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+
+    var response = await http.get(
+      Uri.parse(
+          '${Config.BASE_URL}/api/friendships/getFriendsList.php?userId=$userId'),
+    );
+
+    if (response.statusCode == 200) {
+      var data = json.decode(response.body);
+      if (data['success']) {
+        setState(() {
+          myFriendList = List<Map<String, dynamic>>.from(data['friends']);
+        });
+      }
+    } else {
+      // Handle network error
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -13,17 +49,15 @@ class Friends extends StatelessWidget {
           title: Text('Friends'),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'Suggest'), // Tab gợi ý bạn bè
-              Tab(text: 'My Friends'), // Tab bạn bè của tôi
+              Tab(text: 'My Friends'),
+              Tab(text: 'Suggest'),
             ],
           ),
         ),
         body: TabBarView(
           children: [
-            // Nội dung cho tab Gợi ý bạn bè
-            FriendList(friendList: suggestedFriendList, showAddFriendIcon: true),
-            // Nội dung cho tab Bạn bè của tôi
             FriendList(friendList: myFriendList, showAddFriendIcon: false),
+            Center(child: Text('Suggested friends content goes here')),
           ],
         ),
       ),
@@ -32,7 +66,7 @@ class Friends extends StatelessWidget {
 }
 
 class FriendList extends StatelessWidget {
-  final List<User> friendList;
+  final List<Map<String, dynamic>> friendList;
   final bool showAddFriendIcon;
 
   const FriendList({Key? key, required this.friendList, required this.showAddFriendIcon})
@@ -44,52 +78,42 @@ class FriendList extends StatelessWidget {
       itemCount: friendList.length,
       itemBuilder: (context, index) {
         final friend = friendList[index];
+        String imageUrl = friend['profile_image_url'] ?? 'assets/images/user_placeholder.png';
+
+        ImageProvider<Object> imageProvider;
+        if (imageUrl.startsWith('http') || imageUrl.startsWith('uploads')) {
+          // Handling for network images
+          imageUrl = imageUrl.startsWith('http') ? imageUrl : "${Config.BASE_URL}/$imageUrl";
+          imageProvider = NetworkImage(imageUrl) as ImageProvider<Object>;
+        } else {
+          // Handling for asset images
+          imageProvider = AssetImage(imageUrl) as ImageProvider<Object>;
+        }
+
         return ListTile(
           leading: CircleAvatar(
-            backgroundImage: AssetImage(friend.avatar),
+            backgroundImage: imageProvider,
           ),
-          title: Text(friend.name),
-          subtitle: Text(friend.status),
-          trailing: showAddFriendIcon // Kiểm tra nếu muốn hiển thị biểu tượng "Kết bạn"
+          title: Text(friend['name'] ?? 'Unknown Name'),
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => FriendProfile(userId: friend['user_id']),
+              ),
+            );
+          },
+          trailing: showAddFriendIcon
               ? Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.message),
-              SizedBox(width: 8.0), // Khoảng cách giữa biểu tượng "Chat" và "Kết bạn"
-              Icon(Icons.person_add), // Biểu tượng "Kết bạn"
+              SizedBox(width: 8.0),
+              Icon(Icons.person_add),
             ],
           )
-              : Icon(Icons.message), // Nếu không hiển thị biểu tượng "Kết bạn"
-          onTap: () {
-            _navigateToFriendProfile(context, friend); // Điều hướng đến trang cá nhân của bạn bè
-
-          },
+              : Icon(Icons.message),
         );
       },
     );
   }
-
-  void _navigateToFriendProfile(BuildContext context, User friend) {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => FriendProfile(friend: friend),
-      ),
-    );
-  }
-
-
 }
-
-// Mô phỏng danh sách bạn bè gợi ý
-final List<User> suggestedFriendList = [
-  User(name: 'Jane Smith', avatar: 'assets/jane_avatar.jpg', status: 'Online', friendCount: 10),
-  User(name: 'Bob Johnson', avatar: 'assets/bob_avatar.jpg', status: 'Away', friendCount: 10),
-  // Thêm danh sách bạn bè gợi ý khác nếu cần
-];
-
-// Mô phỏng danh sách bạn bè của tôi
-final List<User> myFriendList = [
-  User(name: 'John Doe', avatar: 'assets/john_avatar.jpg', status: 'Online', friendCount: 10),
-  User(name: 'Alice Smith', avatar: 'assets/alice_avatar.jpg', status: 'Away', friendCount: 10),
-  // Thêm danh sách bạn bè của tôi khác nếu cần
-];

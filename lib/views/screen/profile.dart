@@ -1,13 +1,37 @@
 import 'package:flutter/material.dart';
-import 'package:social_app/model/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:social_app/views/screen/auth/Login.dart';
-import 'package:social_app/views/screen/auth/change_password.dart';
 import 'package:social_app/views/screen/auth/change_password2.dart';
 import 'package:social_app/views/screen/edit_personal_information.dart';
 import 'package:social_app/views/screen/user_profile.dart';
 
-class Profile extends StatelessWidget {
-  final User user = User(name: 'UserName', avatar: 'assets/images/naruto.jpg', status: '', friendCount: 100);
+import '../../config.dart';
+
+class Profile extends StatefulWidget {
+  @override
+  _ProfileState createState() => _ProfileState();
+}
+
+class _ProfileState extends State<Profile> {
+  String username = '';
+  String email = '';
+  String avatarUrl = 'assets/images/naruto.jpg'; // Default avatar URL
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      username = prefs.getString('username') ?? '';
+      email = prefs.getString('email') ?? '';
+      avatarUrl = prefs.getString('profile_image_url') ?? 'assets/images/naruto.jpg';
+      print(avatarUrl);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +41,6 @@ class Profile extends StatelessWidget {
       ),
       body: ListView(
         children: <Widget>[
-          // Account information header section
           Container(
             padding: EdgeInsets.all(16.0),
             child: Column(
@@ -27,17 +50,22 @@ class Profile extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => UserProfile()), // Chuyển đến màn hình cá nhân người dùng chính
+                      MaterialPageRoute(builder: (context) => UserProfile()),
                     );
                   },
-                  child: CircleAvatar(
+                  child: !avatarUrl.startsWith('assets')
+                      ? CircleAvatar(
                     radius: 60,
-                    backgroundImage: AssetImage('assets/images/naruto.jpg'), // Change profile picture
+                    backgroundImage: NetworkImage("${Config.BASE_URL}/$avatarUrl"), // Load from network
+                  )
+                      : CircleAvatar(
+                    radius: 60,
+                    backgroundImage: AssetImage(avatarUrl), // Load local asset
                   ),
                 ),
                 SizedBox(height: 10.0),
                 Text(
-                  'User Name', // Change to the user's name
+                  username,
                   style: TextStyle(
                     fontSize: 20.0,
                     fontWeight: FontWeight.bold,
@@ -45,7 +73,7 @@ class Profile extends StatelessWidget {
                 ),
                 SizedBox(height: 5.0),
                 Text(
-                  'Email: user@example.com', // Change to the user's email
+                  'Email: $email',
                   style: TextStyle(
                     fontSize: 16.0,
                   ),
@@ -53,17 +81,11 @@ class Profile extends StatelessWidget {
               ],
             ),
           ),
-          // Other personal account items
           ListTile(
             leading: Icon(Icons.edit),
             title: Text('Edit Personal Information'),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => EditPersonalInformation(user: user),
-                ),
-              );
+              // Navigate to EditPersonalInformation screen
             },
           ),
           ListTile(
@@ -85,7 +107,6 @@ class Profile extends StatelessWidget {
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
           ),
-          // Add more personal account items if necessary
         ],
       ),
     );
