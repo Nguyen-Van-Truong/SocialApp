@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
-class ChatInfo extends StatefulWidget {
-  final String receiverId;
-  ChatInfo({required this.receiverId});
+import 'package:social_app/views/screen/detail_chat_group.dart';
+
+class ChatGroup extends StatefulWidget {
+  final String groupId;
+
+  ChatGroup({required this.groupId});
+
   @override
-  _ChatInfoState createState() => _ChatInfoState();
+  _ChatGroupState createState() => _ChatGroupState();
 }
 
 class Message {
@@ -16,7 +20,7 @@ class Message {
   Message(this.text, this.isMe);
 }
 
-class _ChatInfoState extends State<ChatInfo> {
+class _ChatGroupState extends State<ChatGroup> {
   List<Message> _messages = [];
   ScrollController _scrollController = ScrollController();
 
@@ -29,56 +33,53 @@ class _ChatInfoState extends State<ChatInfo> {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
   }
+
   Future<void> fetchMessages() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/read.php');
+      var url = Uri.parse(
+          'http://192.168.209.35/social_app_webservice/api/group_messages/getGroupMessages.php');
 
       var response = await http.post(url, body: {
-        'user1': userId.toString(),
-        'user2': widget.receiverId.toString(),
+        'userId': userId.toString(),
+        'groupId': widget.groupId.toString(),
+        'limit': "10",
+        'page': "0",
       });
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         for (var messageData in jsonData['messages']) {
-          if(messageData['sender_id'].toString()==userId.toString()){
+          if (messageData['sender_id'].toString() == userId.toString()) {
             _messages.add(Message(messageData['message'].toString(), true));
           }
-          if(messageData['sender_id'].toString()==widget.receiverId.toString()){
+          if (messageData['sender_id'].toString() != userId.toString()) {
             _messages.add(Message(messageData['message'].toString(), false));
           }
         }
-        setState(() {
-        });
-      } else {
-      }
+        setState(() {});
+      } else {}
     } catch (e) {
-
-    } finally {
-
-    }
+    } finally {}
   }
+
   Future<void> sendMessages(String message) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/sendMessage.php');
-
+      var url = Uri.parse(
+          'http://192.168.209.35/social_app_webservice/api/group_messages/sendMessage.php');
       var response = await http.post(url, body: {
         'senderId': userId.toString(),
-        'receiverId': widget.receiverId.toString(),
+        'groupId': widget.groupId.toString(),
         'message': message.toString(),
       });
-
     } catch (e) {
-
-    } finally {
-
-    }
+    } finally {}
   }
+
   final TextEditingController _textController = TextEditingController();
 
   void _handleSendPressed() {
@@ -92,15 +93,47 @@ class _ChatInfoState extends State<ChatInfo> {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
   }
-
-  void _handleSendImage() {
-
+  void _navigateToDetailChatGroup(BuildContext context, String groupId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DetailChatGroup(groupId :groupId),
+      ),
+    );
   }
+  void _handleSendImage() {}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Thông tin cuộc trò chuyện'),
+        actions: [
+          CircleAvatar(
+            backgroundImage: AssetImage('assets/images/naruto.jpg'),
+          ),
+          IconButton(
+            icon: Icon(Icons.info_outline),
+            onPressed: () {
+              _navigateToDetailChatGroup(context, widget.groupId.toString());
+            },
+          ),
+          // PopupMenuButton<String>(
+          //   onSelected: (String choice) {
+          //     // Xử lý khi lựa chọn từ dropdown menu
+          //     print('Lựa chọn: $choice');
+          //     // Thêm logic xử lý cho từng lựa chọn nếu cần
+          //   },
+          //   itemBuilder: (BuildContext context) {
+          //     return ['Lựa chọn 1', 'Lựa chọn 2', 'Lựa chọn 3']
+          //         .map((String choice) {
+          //       return PopupMenuItem<String>(
+          //         value: choice,
+          //         child: Text(choice),
+          //       );
+          //     }).toList();
+          //   },
+          // ),
+        ],
       ),
       body: Column(
         children: <Widget>[
@@ -111,17 +144,21 @@ class _ChatInfoState extends State<ChatInfo> {
               itemBuilder: (context, index) {
                 final message = _messages[index];
                 return ListTile(
-                  title: message.isMe ? Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(message.text),
-                  ) : Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(message.text),
-                  ),
-                  subtitle: message.isMe ? Align(
-                    alignment: Alignment.centerRight,
-                    child: Text('Bạn'),
-                  ) : null,
+                  title: message.isMe
+                      ? Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(message.text),
+                        )
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(message.text),
+                        ),
+                  subtitle: message.isMe
+                      ? Align(
+                          alignment: Alignment.centerRight,
+                          child: Text('Bạn'),
+                        )
+                      : null,
                 );
               },
             ),
@@ -149,7 +186,6 @@ class _ChatInfoState extends State<ChatInfo> {
                 ),
               ],
             ),
-
           ),
         ],
       ),
