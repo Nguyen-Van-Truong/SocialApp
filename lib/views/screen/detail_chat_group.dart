@@ -16,7 +16,7 @@ class DetailChatGroup extends StatefulWidget {
 
 }
 class _DetailChatGroupState extends State<DetailChatGroup> {
-  var file_url = "";// Biến để lưu trữ dữ liệu từ API
+  var file_url = "";
   var name = "";
   @override
   void initState() {
@@ -63,7 +63,7 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
               // Thêm logic xử lý cho từng lựa chọn nếu cần
             },
             itemBuilder: (BuildContext context) {
-              return ['Xóa cuộc trò chuyện', 'Báo cáo']
+              return ['Xóa cuộc trò chuyện', 'Cập nhật ảnh nhóm']
                   .map((String choice) {
                 return PopupMenuItem<String>(
                   value: choice,
@@ -83,7 +83,7 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
+                  backgroundImage: file_url != "null"? NetworkImage("${Config.BASE_URL}/"+file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
                 ),
                 SizedBox(height: 16),
                 Text(

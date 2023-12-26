@@ -2,30 +2,39 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:social_app/views/screen/chat_group.dart';
+import 'package:social_app/views/screen/create_group_chat.dart';
 import '../../config.dart';
 import 'chat_info.dart';
 import 'package:http/http.dart' as http;
-class Chat extends StatelessWidget  {
 
+class Chat extends StatefulWidget {
+  @override
+  _ChatState createState() => _ChatState();
+}
+
+class _ChatState extends State<Chat> {
   Future<List<FriendItem>> fetchFriends(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('user_id') ?? 0;
     // int userId = 1;
-    final response = await http.get(
-        Uri.parse('${Config.BASE_URL}/api/messages/getFriendsListMessage.php?userId='+userId.toString()+'&sortOrder=recent'));
+    final response = await http.get(Uri.parse(
+        '${Config.BASE_URL}/api/messages/getFriendsListMessage.php?userId=' +
+            userId.toString() +
+            '&sortOrder=recent'));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       if (data['success']) {
         List<FriendItem> friends = [];
         for (var friendData in data['friends']) {
+
           friends.add(FriendItem(
-            id: friendData['user_id'].toString(),
-            username: friendData['username'],
+            id: friendData['user_id'].toString() ?? "",
+            username: friendData['username'] ?? "",
             file_url: friendData['file_url'] ?? "null",
-            lastMessage: friendData['latest_message'] ,
+            lastMessage: friendData['latest_message'] ?? "",
             onTap: () {
-            _navigateToChatInfo(context, friendData['user_id'].toString());
+              _navigateToChatInfo(context, friendData['user_id'].toString());
             },
           ));
         }
@@ -37,28 +46,38 @@ class Chat extends StatelessWidget  {
       throw Exception('Failed to load friends');
     }
   }
+
   Future<List<GroupItem>> fetchGroups(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('user_id') ?? 0;
     // int userId = 1;
-    final response = await http.get(
-        Uri.parse('${Config.BASE_URL}/api/group_messages/getGroupList.php?userId='+userId.toString()+'&sortOrder=recent'));
+    final response = await http.get(Uri.parse(
+        '${Config.BASE_URL}/api/group_messages/getGroupList.php?userId=' +
+            userId.toString() +
+            '&sortOrder=recent'));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       if (data['success']) {
         List<GroupItem> friends = [];
         for (var friendData in data['groups']) {
+          String latestMessage = friendData['last_message'] ?? "";
+
+          // Nếu độ dài của chuỗi lớn hơn 15, cắt chuỗi và thêm dấu "..."
+          if (latestMessage.length > 30) {
+            latestMessage = latestMessage.substring(0, 30) + "...";
+          }
           friends.add(GroupItem(
-            id: friendData['group_id'].toString(),
-            groupName: friendData['name'],
+            id: friendData['group_id'].toString() ?? "",
+            groupName: friendData['name'] ?? "",
             file_url: friendData['file_url'] ?? "null",
-            lastMessage: friendData['last_message'],
+            lastMessage: latestMessage,
             onTap: () {
               _navigateToChatGroup(context, friendData['group_id'].toString());
             },
           ));
         }
+
         return friends;
       } else {
         throw Exception('Failed to load friends');
@@ -67,6 +86,19 @@ class Chat extends StatelessWidget  {
       throw Exception('Failed to load friends');
     }
   }
+
+  Future<void> _onRefreshF(BuildContext context) async {
+    await fetchFriends(context);
+    setState(() {
+    });
+  }
+
+  Future<void> _onRefreshG(BuildContext context) async {
+    await fetchGroups(context);
+    setState(() {
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -92,48 +124,57 @@ class Chat extends StatelessWidget  {
         body: TabBarView(
           children: [
             // Nội dung cho tab Messages
-            FutureBuilder(
-              future: fetchFriends(context),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                } else {
-                  List<FriendItem>? friends = snapshot.data;
-                  return ListView.builder(
-                    itemCount: friends?.length,
-                    itemBuilder: (context, index) {
-                      return friends?[index];
-                    },
-                  );
-                }
-              },
-            ),
+
             // Nội dung cho tab Groups
-            FutureBuilder(
-              future: fetchGroups(context),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                } else if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                } else {
-                  List<GroupItem>? friends = snapshot.data;
-                  return ListView.builder(
-                    itemCount: friends?.length,
-                    itemBuilder: (context, index) {
-                      return friends?[index];
-                    },
-                  );
-                }
-              },
+            RefreshIndicator(
+              onRefresh: () => _onRefreshF(context),
+              child: FutureBuilder(
+                future: fetchFriends(context),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  } else {
+                    List<FriendItem>? friends = snapshot.data;
+                    return ListView.builder(
+                      itemCount: friends?.length,
+                      itemBuilder: (context, index) {
+                        return friends?[index];
+                      },
+                    );
+                  }
+                },
+              ),
+            ),
+            RefreshIndicator(
+              onRefresh: () => _onRefreshG(context),
+              child: FutureBuilder(
+                future: fetchGroups(context),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircularProgressIndicator();
+                  } else if (snapshot.hasError) {
+                    return Text('Error: ${snapshot.error}');
+                  } else {
+                    List<GroupItem>? friends = snapshot.data;
+                    return ListView.builder(
+                      itemCount: friends?.length,
+                      itemBuilder: (context, index) {
+                        return friends?[index];
+                      },
+                    );
+                  }
+                },
+              ),
             ),
           ],
         ),
         floatingActionButton: FloatingActionButton(
           onPressed: () {
-            // Thêm tin nhắn mới
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => CreateGroupChat()),
+            );
           },
           child: Icon(Icons.add),
         ),
@@ -144,7 +185,7 @@ class Chat extends StatelessWidget  {
   void _navigateToChatInfo(BuildContext context, String receiverId) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChatInfo(receiverId :receiverId),
+        builder: (context) => ChatInfo(receiverId: receiverId),
       ),
     );
   }
@@ -152,7 +193,7 @@ class Chat extends StatelessWidget  {
   void _navigateToChatGroup(BuildContext context, String groupId) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => ChatGroup(groupId :groupId),
+        builder: (context) => ChatGroup(groupId: groupId),
       ),
     );
   }
@@ -177,7 +218,8 @@ class ChatItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: onTap, // Gọi hàm onTap khi người dùng bấm vào ListTile
+      onTap: onTap,
+      // Gọi hàm onTap khi người dùng bấm vào ListTile
       leading: CircleAvatar(
         backgroundImage: AssetImage('assets/images/naruto.jpg'),
       ),
@@ -222,9 +264,12 @@ class FriendItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      onTap: onTap, // Gọi hàm onTap khi người dùng bấm vào ListTile
+      onTap: onTap,
+      // Gọi hàm onTap khi người dùng bấm vào ListTile
       leading: CircleAvatar(
-        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
+        backgroundImage: file_url != "null"
+            ? NetworkImage("${Config.BASE_URL}/" + file_url!)
+            : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
       ),
       title: Text(username),
       subtitle: Text(lastMessage),
@@ -260,7 +305,9 @@ class GroupItem extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
+        backgroundImage: file_url != "null"
+            ? NetworkImage("${Config.BASE_URL}/" + file_url!)
+            : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
       ),
       title: Text(groupName),
       subtitle: Text(lastMessage),
@@ -274,4 +321,3 @@ class GroupItem extends StatelessWidget {
     );
   }
 }
-

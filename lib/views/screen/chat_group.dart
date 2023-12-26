@@ -18,24 +18,42 @@ class ChatGroup extends StatefulWidget {
 class Message {
   final String text;
   final bool isMe; // Đánh dấu xem tin nhắn có phải của bạn không
-
-  Message(this.text, this.isMe);
+  final String profileImageSender;
+  Message(this.text, this.isMe, this.profileImageSender);
 }
 
 class _ChatGroupState extends State<ChatGroup> {
   List<Message> _messages = [];
   ScrollController _scrollController = ScrollController();
-
+  var imageGroup = "";
+  var nameGroup = "";
   @override
   void initState() {
     super.initState();
     fetchMessages();
-
+    fetchGroups();
     Future.delayed(Duration(milliseconds: 200), () {
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     });
   }
-
+  Future<void> fetchGroups() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      int userId = prefs.getInt('user_id') ?? 0;
+      // int userId = 1;
+      final response = await http.get(
+          Uri.parse('${Config.BASE_URL}/api/group_messages/getGroupInfo.php?groupId='+widget.groupId.toString()));
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(response.body);
+        for (var groupData in jsonData['groups_info']) {
+          imageGroup = groupData["file_url"] ?? "null";
+          nameGroup = groupData["name"] ?? "";
+        }
+        setState(() {});
+      } else {}
+    } catch (e) {
+    } finally {}
+  }
   Future<void> fetchMessages() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -54,10 +72,10 @@ class _ChatGroupState extends State<ChatGroup> {
         var jsonData = json.decode(response.body);
         for (var messageData in jsonData['messages']) {
           if (messageData['sender_id'].toString() == userId.toString()) {
-            _messages.add(Message(messageData['message'].toString(), true));
+            _messages.add(Message(messageData['message'].toString(), true,messageData['file_url'].toString() ?? "null"));
           }
           if (messageData['sender_id'].toString() != userId.toString()) {
-            _messages.add(Message(messageData['message'].toString(), false));
+            _messages.add(Message(messageData['message'].toString(), false, messageData['file_url'].toString() ?? "null"));
           }
         }
         setState(() {});
@@ -89,8 +107,9 @@ class _ChatGroupState extends State<ChatGroup> {
     if (text.isNotEmpty) {
       sendMessages(text);
       setState(() {
-        _messages.add(Message(text, true));
+        _messages.add(Message(text, true, "null"));
         _textController.clear();
+
       });
       _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
     }
@@ -108,10 +127,10 @@ class _ChatGroupState extends State<ChatGroup> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Thông tin cuộc trò chuyện'),
+        title: Text(nameGroup),
         actions: [
           CircleAvatar(
-            backgroundImage: AssetImage('assets/images/naruto.jpg'),
+            backgroundImage: imageGroup!="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ imageGroup) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
           ),
           IconButton(
             icon: Icon(Icons.info_outline),
@@ -148,13 +167,45 @@ class _ChatGroupState extends State<ChatGroup> {
                 return ListTile(
                   title: message.isMe
                       ? Align(
-                          alignment: Alignment.centerRight,
-                          child: Text(message.text),
-                        )
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: EdgeInsets.all(8.0), // Padding để tạo khoảng trắng giữa border và text
+                      decoration: BoxDecoration(
+                        color: Color(0xFF105893),  // Màu nền đỏ
+                        borderRadius: BorderRadius.circular(8.0),  // Độ cong của border
+                        border: Border.all(
+                          color: Color(0xFF105893),  // Màu của border
+                          width: 1.0,  // Độ dày của border
+                        ),
+                      ),
+                      child: Text(
+                        message.text,
+                        style: TextStyle(color: Colors.white),  // Màu chữ trắng để nổi bật trên nền đỏ
+                      ),
+                        ))
                       : Align(
                           alignment: Alignment.centerLeft,
-                          child: Text(message.text),
+                         child: Container(
+                        padding: EdgeInsets.all(8.0), // Padding để tạo khoảng trắng giữa border và text
+                        decoration: BoxDecoration(
+                          color: Color(0xFF807F7E),  // Màu nền đỏ
+                          borderRadius: BorderRadius.circular(8.0),  // Độ cong của border
+                          border: Border.all(
+                            color: Color(0xFF807F7E),  // Màu của border
+                            width: 1.0,  // Độ dày của border
+                          ),
                         ),
+                        child: Text(
+                          message.text,
+                          style: TextStyle(color: Colors.white),  // Màu chữ trắng để nổi bật trên nền đỏ
+                        ),
+                      )
+                        ),
+                  leading: message.isMe
+                      ? null  // Không hiển thị ảnh nếu là người gửi
+                      : CircleAvatar(
+                    backgroundImage: message.profileImageSender !="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ message.profileImageSender) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
+                  ),
                   subtitle: message.isMe
                       ? Align(
                           alignment: Alignment.centerRight,
