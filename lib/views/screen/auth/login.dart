@@ -30,6 +30,11 @@ class Login extends StatelessWidget {
         await prefs.setString('token', data['token']);
         await prefs.setInt('user_id', data['user_id']);
         await prefs.setString('email', data['email']);
+        await prefs.setString('username', data['username']);
+        String profileImageUrl = data['profile_image_url'] != null
+            ? data['profile_image_url']
+            : 'assets/images/user_placeholder.png';
+        await prefs.setString('profile_image_url', profileImageUrl);
 
         Navigator.pushReplacement(
             context, MaterialPageRoute(builder: (context) => MainScreen()));
