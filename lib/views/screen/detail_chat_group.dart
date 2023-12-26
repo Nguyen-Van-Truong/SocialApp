@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../config.dart';
 class DetailChatGroup extends StatefulWidget {
   final String groupId;
 
@@ -27,7 +29,7 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
       final response = await http.get(
-          Uri.parse('http://192.168.209.35/social_app_webservice/api/group_messages/getGroupInfo.php?groupId='+widget.groupId.toString()));
+          Uri.parse('${Config.BASE_URL}/api/group_messages/getGroupInfo.php?groupId='+widget.groupId.toString()));
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         for (var groupData in jsonData['groups_info']) {
@@ -81,7 +83,7 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
               children: [
                 CircleAvatar(
                   radius: 50,
-                  backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("http://192.168.209.35/social_app_webservice/uploads/1_1702953146.jpg"),
+                  backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
                 ),
                 SizedBox(height: 16),
                 Text(

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:social_app/views/screen/chat_group.dart';
+import '../../config.dart';
 import 'chat_info.dart';
 import 'package:http/http.dart' as http;
 class Chat extends StatelessWidget  {
@@ -11,7 +12,7 @@ class Chat extends StatelessWidget  {
     int userId = prefs.getInt('user_id') ?? 0;
     // int userId = 1;
     final response = await http.get(
-        Uri.parse('http://192.168.209.35//social_app_webservice/api/messages/getFriendsListMessage.php?userId='+userId.toString()+'&sortOrder=recent'));
+        Uri.parse('${Config.BASE_URL}/api/messages/getFriendsListMessage.php?userId='+userId.toString()+'&sortOrder=recent'));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
@@ -41,7 +42,7 @@ class Chat extends StatelessWidget  {
     int userId = prefs.getInt('user_id') ?? 0;
     // int userId = 1;
     final response = await http.get(
-        Uri.parse('http://192.168.209.35//social_app_webservice/api/group_messages/getGroupList.php?userId='+userId.toString()+'&sortOrder=recent'));
+        Uri.parse('${Config.BASE_URL}/api/group_messages/getGroupList.php?userId='+userId.toString()+'&sortOrder=recent'));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
@@ -223,7 +224,7 @@ class FriendItem extends StatelessWidget {
     return ListTile(
       onTap: onTap, // Gọi hàm onTap khi người dùng bấm vào ListTile
       leading: CircleAvatar(
-        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("http://192.168.209.35/social_app_webservice/uploads/1_1702953146.jpg"),
+        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
       ),
       title: Text(username),
       subtitle: Text(lastMessage),
@@ -259,7 +260,7 @@ class GroupItem extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       leading: CircleAvatar(
-        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("http://192.168.209.35/social_app_webservice/uploads/1_1702953146.jpg"),
+        backgroundImage: file_url != "null"? NetworkImage(file_url!) : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
       ),
       title: Text(groupName),
       subtitle: Text(lastMessage),

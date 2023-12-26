@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
+
+import '../../config.dart';
 class ChatInfo extends StatefulWidget {
   final String receiverId;
   ChatInfo({required this.receiverId});
@@ -34,7 +36,7 @@ class _ChatInfoState extends State<ChatInfo> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/read.php');
+      var url = Uri.parse('${Config.BASE_URL}/api/messages/read.php');
 
       var response = await http.post(url, body: {
         'user1': userId.toString(),
@@ -65,7 +67,7 @@ class _ChatInfoState extends State<ChatInfo> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      var url = Uri.parse('http://192.168.209.35/social_app_webservice/api/messages/sendMessage.php');
+      var url = Uri.parse('${Config.BASE_URL}/api/messages/sendMessage.php');
 
       var response = await http.post(url, body: {
         'senderId': userId.toString(),

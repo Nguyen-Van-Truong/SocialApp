@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:social_app/views/screen/detail_chat_group.dart';
 
+import '../../config.dart';
+
 class ChatGroup extends StatefulWidget {
   final String groupId;
 
@@ -40,7 +42,7 @@ class _ChatGroupState extends State<ChatGroup> {
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
       var url = Uri.parse(
-          'http://192.168.209.35/social_app_webservice/api/group_messages/getGroupMessages.php');
+          '${Config.BASE_URL}/api/group_messages/getGroupMessages.php');
 
       var response = await http.post(url, body: {
         'userId': userId.toString(),
@@ -70,7 +72,7 @@ class _ChatGroupState extends State<ChatGroup> {
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
       var url = Uri.parse(
-          'http://192.168.209.35/social_app_webservice/api/group_messages/sendMessage.php');
+          '${Config.BASE_URL}/api/group_messages/sendMessage.php');
       var response = await http.post(url, body: {
         'senderId': userId.toString(),
         'groupId': widget.groupId.toString(),

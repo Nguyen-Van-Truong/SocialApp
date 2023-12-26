@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:social_app/config.dart';
 
 class CreatePostScreen extends StatefulWidget {
   @override
@@ -11,13 +12,15 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
-  File? _image;
+  List<File> _images = []; // List to store multiple images
   String? _userId;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
     _loadUserId();
+    _contentController.addListener(_updateButtonState);
   }
 
   Future<void> _loadUserId() async {
@@ -27,35 +30,64 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
   }
 
-  Future<void> _uploadPost() async {
-    var uri = Uri.parse('http://192.168.1.4/social_app_webservice/api/posts/createPost.php');
-    var request = http.MultipartRequest('POST', uri)
-      ..fields['userId'] = _userId ?? '1' // Sử dụng userId từ SharedPreferences
-      ..fields['content'] = _contentController.text
-      ..fields['visible'] = '1'; // Giả sử rằng mọi bài viết đều là hiển thị
+  Future<void> _pickImages() async {
+    final ImagePicker _picker = ImagePicker();
+    final List<XFile>? selectedImages = await _picker.pickMultiImage();
 
-    if (_image != null) {
-      request.files.add(await http.MultipartFile.fromPath('image', _image!.path));
+    if (selectedImages != null) {
+      setState(() {
+        _images.addAll(selectedImages.map((image) => File(image.path)));
+      });
+    }
+  }
+
+  Future<void> _uploadPost() async {
+    var uri = Uri.parse('${Config.BASE_URL}/api/posts/createPost.php');
+    var request = http.MultipartRequest('POST', uri)
+      ..fields['userId'] = _userId ?? '1'
+      ..fields['content'] = _contentController.text
+      ..fields['visible'] = '1';
+
+    for (var image in _images) {
+      request.files.add(await http.MultipartFile.fromPath('image[]', image.path));
     }
 
     var response = await request.send();
 
     if (response.statusCode == 200) {
       print('Bài viết đã được đăng');
-      // Xử lý thêm sau khi đăng bài viết thành công
+      _showMessage(context, 'Bài viết đã được đăng', Colors.green);
+      setState(() {
+        _contentController.text = '';
+        _images.clear();
+      });
     } else {
       print('Lỗi khi đăng bài viết');
-      // Xử lý lỗi
+      _showMessage(context, 'Lỗi khi đăng bài viết', Colors.red);
     }
+  }
+
+  void _showMessage(BuildContext context, String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+      ),
+    );
+  }
+
+  void _updateButtonState() {
+    setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text('Create Post'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: EdgeInsets.all(12.0),
         child: Column(
           children: <Widget>[
@@ -66,23 +98,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             ),
             SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () async {
-                final ImagePicker _picker = ImagePicker();
-                final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
-                if (image != null) {
-                  setState(() {
-                    _image = File(image.path);
-                  });
-                }
-              },
-              child: Text('Upload Image'),
+              onPressed: _pickImages,
+              child: Text('Upload Images'),
             ),
             SizedBox(height: 8),
-            _image != null ? Image.file(_image!) : Container(),
+            Wrap(
+              children: _images.map((image) => Image.file(image, width: 100, height: 100)).toList(),
+            ),
             SizedBox(height: 8),
             ElevatedButton(
-              onPressed: _uploadPost,
+              onPressed: _contentController.text.isNotEmpty || _images.isNotEmpty
+                  ? _uploadPost
+                  : null,
               child: Text('Post'),
             ),
           ],
