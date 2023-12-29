@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:social_app/views/screen/member_edit.dart';
 import 'dart:io';
 import '../../config.dart';
+import 'chat.dart';
+import 'chat_info.dart';
 class DetailChatGroup extends StatefulWidget {
   final String groupId;
 
@@ -19,11 +22,31 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
   String? _userId;
   var file_url = "";
   var name = "";
+  String roleUserInGroup = "";
   @override
   void initState() {
     super.initState();
     fetchGroups();
     _loadUserId();
+    getRoleInGroup();
+    setState(() {
+    });
+  }
+  Future<void> getRoleInGroup() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+    final response = await http.get(Uri.parse(
+        '${Config.BASE_URL}/api/group_messages/getRoleInGroup.php?userId=' +
+            userId.toString() +
+            '&groupId='+ widget.groupId.toString()));
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      for (var groupData in jsonData['data']) {
+        roleUserInGroup = groupData["role"] ?? "member";
+      }
+    } else {
+      throw Exception('Failed to load friends');
+    }
   }
   Future<void> _loadUserId() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -49,7 +72,7 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
     } catch (e) {
     } finally {}
   }
-  Future<void> _showCommentsDialog() async {
+  Future<void> _showUpdateImageDialog() async {
     XFile? selectedImage;
     final ImagePicker picker = ImagePicker();
 
@@ -116,6 +139,13 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
       },
     );
   }
+  void _navigateToMember(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => MemberEdit(groupId: widget.groupId.toString()),
+      ),
+    );
+  }
   Future<void> _updateImage(XFile? imageFile) async {
     var request = http.MultipartRequest(
         'POST', Uri.parse('${Config.BASE_URL}/api/group_messages/updateImageGroup.php'));
@@ -141,7 +171,106 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
       print('Failed to connect to the server');
     }
   }
+  Future<void> _outGroupDialog() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        Future<void> removeFriend() async {
+          try {
+            SharedPreferences prefs = await SharedPreferences.getInstance();
+            int userId = prefs.getInt('user_id') ?? 0;
+            var url = Uri.parse('${Config.BASE_URL}/api/group_messages/removeGroupMember.php');
 
+            var response = await http.post(url, body: {
+              'userId': userId.toString(),
+              'groupId': widget.groupId.toString(),
+            });
+            Navigator.of(context).pop();
+          } catch (e) {
+
+          } finally {
+
+          }
+        }
+        return StatefulBuilder(
+          builder: (context, StateSetter dialogSetState) {
+            return AlertDialog(
+              title: Text('Confirm out group'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Out'),
+                  onPressed: () {
+                    removeFriend();
+                  },
+                ),
+                TextButton(
+                  child: Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  Future<void> _removeGroup() async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        Future<void> removeFriend() async {
+          try {
+            var url = Uri.parse('${Config.BASE_URL}/api/group_messages/removeGroup.php');
+            var response = await http.post(url, body: {
+              'groupId': widget.groupId.toString(),
+            });
+            Navigator.of(context).pop();
+          } catch (e) {
+
+          } finally {
+
+          }
+        }
+        return StatefulBuilder(
+          builder: (context, StateSetter dialogSetState) {
+            return AlertDialog(
+              title: roleUserInGroup=="admin" ? Text('Confirm remove group') : Text('You are not an admin'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Remove'),
+                  onPressed: () {
+                    if(roleUserInGroup=="admin"){
+                      removeFriend();
+                    }
+                  },
+                ),
+                TextButton(
+                  child: Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
 
@@ -158,16 +287,18 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
         actions: [
           PopupMenuButton<String>(
             onSelected: (String choice) {
-              // Xử lý khi lựa chọn từ dropdown menu
-              print('Lựa chọn: $choice');
-              // Thêm logic xử lý cho từng lựa chọn nếu cần
               if (choice == 'Cập nhật ảnh nhóm') {
-                // Gọi hàm cập nhật ảnh nhóm ở đây
-                _showCommentsDialog();
+                _showUpdateImageDialog();
+              }
+              if (choice == 'Rời nhóm') {
+                _outGroupDialog();
+              }
+              if (choice == 'Xóa cuộc trò chuyện') {
+                 _removeGroup();
               }
             },
             itemBuilder: (BuildContext context) {
-              return ['Xóa cuộc trò chuyện', 'Cập nhật ảnh nhóm']
+              return ['Xóa cuộc trò chuyện', 'Cập nhật ảnh nhóm', 'Rời nhóm']
                   .map((String choice) {
                 return PopupMenuItem<String>(
                   value: choice,
@@ -200,10 +331,26 @@ class _DetailChatGroupState extends State<DetailChatGroup> {
               ],
             ),
           ),
-          Divider(),
+          ListTile(
+            onTap: () {
+              _navigateToMember(context);
+            },
+          leading: IconButton(
+            icon: Icon(Icons.account_box_rounded),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          title: Text('Members'), tileColor: Colors.grey[200], shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          ),
+
           // Các thông tin khác có thể thêm vào đây
         ],
       ),
     );
   }
+
+
 }
