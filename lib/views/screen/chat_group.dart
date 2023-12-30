@@ -207,7 +207,7 @@ class _ChatGroupState extends State<ChatGroup> {
           'POST', Uri.parse('${Config.BASE_URL}/api/group_messages/sendImage.php'));
       request.fields['senderId'] = userId.toString();
       request.fields['groupId'] = widget.groupId.toString();
-      request.fields['message'] = "";
+      request.fields['message'] = "Đã gửi 1 ảnh";
 
       if (imageFile != null) {
         request.files
