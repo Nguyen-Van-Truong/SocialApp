@@ -7,37 +7,49 @@ import '../../config.dart';
 import 'chat_info.dart';
 import 'package:http/http.dart' as http;
 
-class Chat extends StatefulWidget {
+class MemberEdit extends StatefulWidget {
+  final String groupId;
+  MemberEdit({required this.groupId});
   @override
-  _ChatState createState() => _ChatState();
+  _MemberEdit createState() => _MemberEdit();
 }
 
-class _ChatState extends State<Chat> {
+class _MemberEdit extends State<MemberEdit> {
+  String roleUserInGroup = "";
+
+  @override
+  void initState() {
+    super.initState();
+    getRoleInGroup();
+    setState(() {
+    });
+  }
+
   Future<List<FriendItem>> fetchFriends(BuildContext context) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     int userId = prefs.getInt('user_id') ?? 0;
-    // int userId = 1;
     final response = await http.get(Uri.parse(
-        '${Config.BASE_URL}/api/messages/getFriendsListMessage.php?userId=' +
+        '${Config.BASE_URL}/api/group_messages/getFriendNotInGroup.php?userId=' +
             userId.toString() +
-            '&sortOrder=recent'));
+            '&groupId='+ widget.groupId.toString()));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       if (data['success']) {
         List<FriendItem> friends = [];
         for (var friendData in data['friends']) {
-
           friends.add(FriendItem(
             id: friendData['user_id'].toString() ?? "",
-            username: friendData['username'] ?? "",
-            file_url: friendData['file_url'] ?? "null",
-            lastMessage: friendData['latest_message'] ?? "",
+            username: friendData['username'].toString() ?? "",
+            file_url: friendData['file_url'].toString() ?? "null",
             onTap: () {
-              _navigateToChatInfo(context, friendData['user_id'].toString());
+              if(roleUserInGroup=="admin"){
+                _addFriendIntoGroupDialog(friendData['user_id'].toString());
+              }
             },
           ));
         }
+
         return friends;
       } else {
         throw Exception('Failed to load friends');
@@ -48,32 +60,24 @@ class _ChatState extends State<Chat> {
   }
 
   Future<List<GroupItem>> fetchGroups(BuildContext context) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    int userId = prefs.getInt('user_id') ?? 0;
-    // int userId = 1;
     final response = await http.get(Uri.parse(
-        '${Config.BASE_URL}/api/group_messages/getGroupList.php?userId=' +
-            userId.toString() +
-            '&sortOrder=recent'));
+        '${Config.BASE_URL}/api/group_messages/GetMember.php?groupId=' +
+            widget.groupId.toString()));
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = json.decode(response.body);
       if (data['success']) {
         List<GroupItem> friends = [];
-        for (var friendData in data['groups']) {
-          String latestMessage = friendData['last_message'] ?? "";
-
-          // Nếu độ dài của chuỗi lớn hơn 15, cắt chuỗi và thêm dấu "..."
-          if (latestMessage.length > 30) {
-            latestMessage = latestMessage.substring(0, 30) + "...";
-          }
+        for (var friendData in data['friends']) {
           friends.add(GroupItem(
-            id: friendData['group_id'].toString() ?? "",
-            groupName: friendData['name'] ?? "",
-            file_url: friendData['file_url'] ?? "null",
-            lastMessage: latestMessage,
+            id: friendData['user_id'].toString() ?? "",
+            groupName: friendData['username'] ?? "",
+            file_url: friendData['file_url'].toString() ?? "null",
+            lastMessage: friendData['role'] ?? "",
             onTap: () {
-              _navigateToChatGroup(context, friendData['group_id'].toString());
+              if(roleUserInGroup=="admin") {
+                _removeFriendIntoGroupDialog(friendData['user_id'].toString());
+              }
             },
           ));
         }
@@ -87,6 +91,22 @@ class _ChatState extends State<Chat> {
     }
   }
 
+  Future<void> getRoleInGroup() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+    final response = await http.get(Uri.parse(
+        '${Config.BASE_URL}/api/group_messages/getRoleInGroup.php?userId=' +
+            userId.toString() +
+            '&groupId='+ widget.groupId.toString()));
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      for (var groupData in jsonData['data']) {
+        roleUserInGroup = groupData["role"] ?? "member";
+      }
+    } else {
+      throw Exception('Failed to load friends');
+    }
+  }
   Future<void> _onRefreshF(BuildContext context) async {
     await fetchFriends(context);
     setState(() {
@@ -99,17 +119,120 @@ class _ChatState extends State<Chat> {
     });
   }
 
+
+  Future<void> _addFriendIntoGroupDialog(String userIdIsAdd) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, StateSetter dialogSetState) {
+            Future<void> addFriend(String userIdIsAdd) async {
+              try {
+                // int userId = 1;
+                var url = Uri.parse('${Config.BASE_URL}/api/group_messages/addGroupMember.php');
+
+                var response = await http.post(url, body: {
+                  'userId': userIdIsAdd,
+                  'groupId': widget.groupId.toString(),
+                });
+                Navigator.of(context).pop();
+                _onRefreshF(context);
+              } catch (e) {
+
+              } finally {
+
+              }
+            }
+            return AlertDialog(
+              title: Text('Confirm add member'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Add'),
+                  onPressed: () {
+                    addFriend(userIdIsAdd);
+                  },
+                ),
+                TextButton(
+                  child: Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+  Future<void> _removeFriendIntoGroupDialog(String userIdIsAdd) async {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        Future<void> removeFriend(String userIdIsAdd) async {
+          try {
+            // int userId = 1;
+            var url = Uri.parse('${Config.BASE_URL}/api/group_messages/removeGroupMember.php');
+
+            var response = await http.post(url, body: {
+              'userId': userIdIsAdd,
+              'groupId': widget.groupId.toString(),
+            });
+            Navigator.of(context).pop();
+            _onRefreshG(context);
+          } catch (e) {
+
+          } finally {
+
+          }
+        }
+        return StatefulBuilder(
+          builder: (context, StateSetter dialogSetState) {
+            return AlertDialog(
+              title: Text('Confirm remove member'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Remove'),
+                  onPressed: () {
+                    removeFriend(userIdIsAdd);
+                  },
+                ),
+                TextButton(
+                  child: Text('Close'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2, // Số lượng tabs
       child: Scaffold(
         appBar: AppBar(
-          title: Text('Chats'),
+          title: Text('Members'),
           bottom: TabBar(
             tabs: [
-              Tab(text: 'Messages'), // Tab tin nhắn
-              Tab(text: 'Groups'), // Tab nhóm
+              Tab(text: 'Add Members'), // Tab tin nhắn
+              Tab(text: 'Members'), // Tab nhóm
             ],
           ),
           actions: [
@@ -168,14 +291,6 @@ class _ChatState extends State<Chat> {
               ),
             ),
           ],
-        ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => CreateGroupChat()),
-            );
-          },
-          child: Icon(Icons.add),
         ),
       ),
     );
@@ -248,7 +363,6 @@ class FriendItem extends StatelessWidget {
   final String id;
   final String username;
   final String file_url;
-  final String lastMessage;
   final VoidCallback onTap; // Thêm thuộc tính onTap
 
   const FriendItem({
@@ -256,7 +370,6 @@ class FriendItem extends StatelessWidget {
     required this.id,
     required this.username,
     required this.file_url,
-    required this.lastMessage,
     required this.onTap, // Truyền hàm onTap vào
   }) : super(key: key);
 
@@ -271,7 +384,6 @@ class FriendItem extends StatelessWidget {
             : NetworkImage("${Config.BASE_URL}/uploads/1_1702953146.jpg"),
       ),
       title: Text(username),
-      subtitle: Text(lastMessage),
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
