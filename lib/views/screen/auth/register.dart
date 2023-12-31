@@ -88,7 +88,6 @@ class _RegisterState extends State<Register> {
       child: Text(
         "Register",
         style: TextStyle(
-          color: Colors.black,
           fontSize: 40,
           fontWeight: FontWeight.bold,
         ),
@@ -107,22 +106,19 @@ class _RegisterState extends State<Register> {
           _buildTextField(controller: _passwordController, hintText: "Password", obscureText: true),
           _buildTextField(controller: _confirmPasswordController, hintText: "Confirm Password", obscureText: true),
           SizedBox(height: 30),
-          GestureDetector(
-            onTap: () => _registerUser(context),
-            child: _buildRegisterButton(),
+          ElevatedButton(
+            onPressed: () => _registerUser(context),
+            child: Text("Register", style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(double.infinity, 50), // Full width button
+            ),
           ),
-          SizedBox(height: 30),
-          GestureDetector(
-            onTap: () {
+          SizedBox(height: 20),
+          TextButton(
+            onPressed: () {
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
-            child: Text(
-              "Already have an account",
-              style: TextStyle(
-                color: Color.fromRGBO(143, 148, 251, 1),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            child: Text("Already have an account"),
           ),
         ],
       ),
@@ -150,10 +146,10 @@ class _RegisterState extends State<Register> {
     return BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Color.fromRGBO(143, 148, 251, 1)),
+      border: Border.all(color: Colors.grey),
       boxShadow: [
         BoxShadow(
-          color: Color.fromRGBO(143, 148, 251, .2),
+          color: Colors.grey.withOpacity(0.2),
           blurRadius: 20.0,
           offset: Offset(0, 10),
         ),
@@ -164,10 +160,7 @@ class _RegisterState extends State<Register> {
   Widget _buildGenderSelection() {
     return Row(
       children: <Widget>[
-        Text(
-          "Gender:",
-          style: TextStyle(color: Colors.grey[700]),
-        ),
+        Text("Gender:"),
         _buildGenderRadio("Male", "Male"),
         _buildGenderRadio("Female", "Female"),
       ],
@@ -188,27 +181,6 @@ class _RegisterState extends State<Register> {
         ),
         Text(label),
       ],
-    );
-  }
-
-  Widget _buildRegisterButton() {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: LinearGradient(
-          colors: [
-            Color.fromRGBO(143, 148, 251, 1),
-            Color.fromRGBO(143, 148, 251, .6),
-          ],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          "Register",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
     );
   }
 }

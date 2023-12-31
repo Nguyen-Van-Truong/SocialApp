@@ -38,6 +38,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
+        centerTitle: true,
       ),
       body: ListView(
         children: <Widget>[
@@ -103,12 +104,18 @@ class _ProfileState extends State<Profile> {
           ListTile(
             leading: Icon(Icons.exit_to_app),
             title: Text('Log Out'),
-            onTap: () {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
-            },
+            onTap: _logout, // Call the logout function here
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Clear all shared preferences
+
+    // Navigate to Login Screen
+    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => Login()));
   }
 }
