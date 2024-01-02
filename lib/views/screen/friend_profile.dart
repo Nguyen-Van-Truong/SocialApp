@@ -25,7 +25,8 @@ class _FriendProfileState extends State<FriendProfile> {
   List<Map<String, dynamic>> listPost = [];
   int currentPage = 0; // Pagination variables
   bool isLoadingMore = false;
-
+  String friendshipStatus = 'none'; // New variable to track friendship status
+  int requestSender = 0;
   @override
   void initState() {
     super.initState();
@@ -48,20 +49,18 @@ class _FriendProfileState extends State<FriendProfile> {
     }).toList();
   }
 
-  Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
-    int userId = prefs.getInt('user_id') ?? 0;
-    await _fetchUserProfile(userId);
-  }
-
   Future<void> _fetchUserProfile(int userId, {int page = 0}) async {
     if (isLoadingMore) return; // Prevent multiple simultaneous loads
     isLoadingMore = true;
 
+    final prefs = await SharedPreferences.getInstance();
+    int viewerId = prefs.getInt('user_id') ?? 0; // Get viewer's user ID from SharedPreferences
+
     var response = await http.post(
       Uri.parse('${Config.BASE_URL}/api/users/getUserProfile.php'),
       body: {
-        'userId': userId.toString(),
+        'viewerId': viewerId.toString(), // Pass viewerId to API
+        'userId': widget.userId.toString(), // Ensure this is the friend's userId
         'page': page.toString(),
         'limit': '5',
       },
@@ -89,6 +88,9 @@ class _FriendProfileState extends State<FriendProfile> {
           listPost.addAll(newPosts);
 
           currentPage = page; // Update the current page
+          friendshipStatus = data['data']['user_info']['friendship_status'];
+          requestSender = data['data']['user_info']['request_sender'] ?? 0;
+
         });
       }
     } else {
@@ -98,16 +100,46 @@ class _FriendProfileState extends State<FriendProfile> {
     isLoadingMore = false;
   }
 
+  IconData _getFriendshipIcon() {
+    if (friendshipStatus == 'requested' && requestSender == widget.userId) {
+      return Icons.person_add; // Friend request received
+    }
+    switch (friendshipStatus) {
+      case 'none':
+        return Icons.person_add;
+      case 'requested':
+        return Icons.cancel;
+      case 'accepted':
+        return Icons.more_horiz;
+      default:
+        return Icons.person_add;
+    }
+  }
+
+  String _getFriendshipTooltip() {
+    if (friendshipStatus == 'requested' && requestSender == widget.userId) {
+      return 'Respond to Friend Request';
+    }
+    switch (friendshipStatus) {
+      case 'none':
+        return 'Send Friend Request';
+      case 'requested':
+        return 'Cancel Friend Request';
+      case 'accepted':
+        return 'Friendship Options';
+      default:
+        return 'Friendship Action';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Determine the ImageProvider based on the avatar string
     ImageProvider backgroundImage;
     if (avatar != null && avatar!.startsWith('http')) {
-      backgroundImage =
-          NetworkImage(avatar!); // Use NetworkImage for network URLs
+      backgroundImage = NetworkImage(avatar!); // Use NetworkImage for network URLs
     } else {
-      backgroundImage = AssetImage(avatar ??
-          'assets/images/user_placeholder.png'); // Use AssetImage for assets
+      backgroundImage = AssetImage(avatar ?? 'assets/images/user_placeholder.png'); // Use AssetImage for assets
     }
 
     return DefaultTabController(
@@ -136,12 +168,10 @@ class _FriendProfileState extends State<FriendProfile> {
             SizedBox(height: 16.0),
             CircleAvatar(
               backgroundImage: backgroundImage,
-              // Use the determined ImageProvider
               radius: 50.0,
             ),
             SizedBox(height: 8.0),
-            Text(name,
-                style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
+            Text(name, style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold)),
             SizedBox(height: 8.0),
             Text(status, style: TextStyle(fontSize: 16.0)),
             SizedBox(height: 8.0),
@@ -155,9 +185,184 @@ class _FriendProfileState extends State<FriendProfile> {
                 ],
               ),
             ),
+            IconButton(
+              icon: Icon(_getFriendshipIcon()),
+              tooltip: _getFriendshipTooltip(),
+              onPressed: () {
+                // Handle different actions based on friendship status
+                _handleFriendshipAction();
+              },
+            ),
           ],
         ),
       ),
+    );
+  }
+
+  void _handleFriendshipAction() {
+    switch (friendshipStatus) {
+      case 'none':
+        _sendFriendRequest();
+        break;
+      case 'requested':
+        if (requestSender == widget.userId) {
+          _respondToFriendRequest();
+        } else {
+          _cancelOrRejectFriendRequest();
+        }
+        break;
+      case 'accepted':
+        _showFriendshipOptions();
+        break;
+      default:
+        print('Unhandled friendship action');
+    }
+  }
+
+  void _respondToFriendRequest() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 120,
+          child: Column(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.check),
+                title: Text('Accept Friend Request'),
+                onTap: () {
+                  _acceptFriendRequest();
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.cancel),
+                title: Text('Decline Friend Request'),
+                onTap: () {
+                  _cancelOrRejectFriendRequest();
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  Future<void> _acceptFriendRequest() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int currentUser = prefs.getInt('user_id') ?? 0;
+
+    var url = Uri.parse('${Config.BASE_URL}/api/friendships/acceptFriendRequest.php');
+    var response = await http.post(url, body: {
+      'currentUser': currentUser.toString(),
+      'requestSender': widget.userId.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      if (jsonData['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend request accepted successfully')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to accept friend request')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error connecting to server')));
+    }
+  }
+
+
+
+  Future<void> _cancelOrRejectFriendRequest() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+
+    var url = Uri.parse('${Config.BASE_URL}/api/friendships/cancelOrRejectFriendRequest.php');
+    var response = await http.post(url, body: {
+      'userId': userId.toString(),
+      'otherUserId': widget.userId.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      if (jsonData['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend request cancelled/rejected successfully')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to cancel/reject friend request')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error connecting to server')));
+    }
+  }
+
+
+  Future<void> _sendFriendRequest() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int requestSender = prefs.getInt('user_id') ?? 0;
+
+    var url = Uri.parse('${Config.BASE_URL}/api/friendships/sendFriendRequest.php');
+    var response = await http.post(url, body: {
+      'requestSender': requestSender.toString(),
+      'requestReceiver': widget.userId.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      if (jsonData['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Friend request sent successfully')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to send friend request')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error connecting to server')));
+    }
+  }
+
+
+  Future<void> _unfriend() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int requestingUserId = prefs.getInt('user_id') ?? 0;
+
+    var url = Uri.parse('${Config.BASE_URL}/api/friendships/unfriend.php');
+    var response = await http.post(url, body: {
+      'requestingUserId': requestingUserId.toString(),
+      'targetUserId': widget.userId.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      var jsonData = json.decode(response.body);
+      if (jsonData['success']) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Unfriended successfully')));
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to unfriend')));
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error connecting to server')));
+    }
+  }
+
+
+  void _showFriendshipOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          height: 120,
+          child: Column(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.person_remove),
+                title: Text('Unfriend'),
+                onTap: () {
+                  _unfriend();
+                  Navigator.pop(context);
+                },
+              ),
+              // Add more options here if needed
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -378,16 +583,6 @@ class _FriendProfileState extends State<FriendProfile> {
     } else {
       print('Error liking/unliking post');
     }
-  }
-
-  Widget _buildActionButton(
-      IconData icon, String text, VoidCallback onPressed) {
-    return Row(
-      children: <Widget>[
-        IconButton(icon: Icon(icon), onPressed: onPressed),
-        Text(text),
-      ],
-    );
   }
 
   // Method to show comments in a dialog
