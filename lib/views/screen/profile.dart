@@ -28,7 +28,8 @@ class _ProfileState extends State<Profile> {
     setState(() {
       username = prefs.getString('username') ?? '';
       email = prefs.getString('email') ?? '';
-      avatarUrl = prefs.getString('profile_image_url') ?? 'assets/images/naruto.jpg';
+      avatarUrl =
+          prefs.getString('profile_image_url') ?? 'assets/images/naruto.jpg';
       print(avatarUrl);
     });
   }
@@ -56,13 +57,15 @@ class _ProfileState extends State<Profile> {
                   },
                   child: !avatarUrl.startsWith('assets')
                       ? CircleAvatar(
-                    radius: 60,
-                    backgroundImage: NetworkImage("${Config.BASE_URL}/$avatarUrl"), // Load from network
-                  )
+                          radius: 60,
+                          backgroundImage: NetworkImage(
+                              "${Config.BASE_URL}/$avatarUrl"), // Load from network
+                        )
                       : CircleAvatar(
-                    radius: 60,
-                    backgroundImage: AssetImage(avatarUrl), // Load local asset
-                  ),
+                          radius: 60,
+                          backgroundImage:
+                              AssetImage(avatarUrl), // Load local asset
+                        ),
                 ),
                 SizedBox(height: 10.0),
                 Text(
@@ -86,7 +89,12 @@ class _ProfileState extends State<Profile> {
             leading: Icon(Icons.edit),
             title: Text('Edit Personal Information'),
             onTap: () {
-              // Navigate to EditPersonalInformation screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditPersonalInformation(),
+                ),
+              );
             },
           ),
           ListTile(
@@ -116,6 +124,7 @@ class _ProfileState extends State<Profile> {
     await prefs.clear(); // Clear all shared preferences
 
     // Navigate to Login Screen
-    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => Login()));
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (context) => Login()));
   }
 }
