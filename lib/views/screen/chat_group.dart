@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:social_app/views/screen/detail_chat_group.dart';
+import 'package:web_socket_channel/io.dart';
 import 'dart:io';
 import '../../config.dart';
 
@@ -18,34 +19,144 @@ class ChatGroup extends StatefulWidget {
 
 class Message {
   final String text;
-  final bool isMe; // Đánh dấu xem tin nhắn có phải của bạn không
+  final bool isMe;
   final String profileImageSender;
   final String fileUrl;
+
   Message(this.text, this.isMe, this.profileImageSender, this.fileUrl);
 }
 
 class _ChatGroupState extends State<ChatGroup> {
   List<Message> _messages = [];
   ScrollController _scrollController = ScrollController();
+  late IOWebSocketChannel channel; // WebSocket channel
   var imageGroup = "";
   var nameGroup = "";
   String imageSend = "";
+
   @override
   void initState() {
     super.initState();
-    fetchMessages();
+    connectWebSocket(); // Connect to WebSocket
+    fetchMessages().then((_) {
+      Future.delayed(Duration(milliseconds: 500), _scrollToBottom);
+    });
     fetchGroups();
-    Future.delayed(Duration(milliseconds: 200), () {
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+  }
+
+  void connectWebSocket() {
+    channel = IOWebSocketChannel.connect(Config.WEBSOCKET_URL);
+
+    channel.stream.listen((message) {
+      var decodedMessage = jsonDecode(message);
+
+      if (decodedMessage['type'] == 'new_message' &&
+          decodedMessage['chatType'] == 'group' &&
+          decodedMessage['groupId'].toString() == widget.groupId) {
+        fetchLatestMessages().then((_) {
+          Future.delayed(Duration(milliseconds: 500), _scrollToBottom);
+        });
+      }
     });
   }
+
+  Future<void> fetchLatestMessages() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      int userId = prefs.getInt('user_id') ?? 0;
+
+      var url = Uri.parse(
+          '${Config.BASE_URL}/api/group_messages/fetchLatestGroupMessages.php');
+      var response = await http.post(url, body: {
+        'groupId': widget.groupId.toString(),
+      });
+
+      if (response.statusCode == 200) {
+        var jsonData = json.decode(response.body);
+        List<Message> newMessages = [];
+        for (var messageData in jsonData['messages']) {
+          bool isMe = messageData['sender_id'].toString() == userId.toString();
+          var newMessage = Message(
+            messageData['message'].toString(),
+            isMe,
+            messageData['file_url'].toString() ?? "null",
+            // Assuming this is the correct key
+            messageData['image'].toString() ??
+                "null", // Assuming this is the correct key
+          );
+
+          // Check if the message is not already in the list
+          if (!_messages.any((msg) =>
+              msg.text == newMessage.text && msg.isMe == newMessage.isMe)) {
+            newMessages.add(newMessage);
+          }
+        }
+
+        if (newMessages.isNotEmpty) {
+          setState(() {
+            _messages.addAll(newMessages);
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      // Handle exception
+    }
+  }
+
+  @override
+  void dispose() {
+    channel.sink.close(); // Close WebSocket connection
+    super.dispose();
+  }
+
+  Future<void> sendMessages(String message) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+
+    var url =
+        Uri.parse('${Config.BASE_URL}/api/group_messages/sendMessage.php');
+    var response = await http.post(url, body: {
+      'senderId': userId.toString(),
+      'groupId': widget.groupId.toString(),
+      'message': message.toString(),
+    });
+
+    if (response.statusCode == 200) {
+      sendWebSocketNotification(message);
+    }
+  }
+
+  Future<void> sendWebSocketNotification(String message) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    int userId = prefs.getInt('user_id') ?? 0;
+    var notification = jsonEncode({
+      'senderId': userId.toString(),
+      'chatType': 'group',
+      'groupId': widget.groupId,
+      'message': message
+    });
+    channel.sink.add(notification);
+  }
+
+  void _scrollToBottom() {
+    if (_scrollController.hasClients && _messages.isNotEmpty) {
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    }
+  }
+
   Future<void> fetchGroups() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
       // int userId = 1;
-      final response = await http.get(
-          Uri.parse('${Config.BASE_URL}/api/group_messages/getGroupInfo.php?groupId='+widget.groupId.toString()));
+      final response = await http.get(Uri.parse(
+          '${Config.BASE_URL}/api/group_messages/getGroupInfo.php?groupId=' +
+              widget.groupId.toString()));
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
         for (var groupData in jsonData['groups_info']) {
@@ -57,6 +168,7 @@ class _ChatGroupState extends State<ChatGroup> {
     } catch (e) {
     } finally {}
   }
+
   Future<void> fetchMessages() async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -75,30 +187,22 @@ class _ChatGroupState extends State<ChatGroup> {
         var jsonData = json.decode(response.body);
         for (var messageData in jsonData['messages']) {
           if (messageData['sender_id'].toString() == userId.toString()) {
-            _messages.add(Message(messageData['message'].toString(), true,messageData['file_url'].toString() ?? "null", messageData['image'].toString() ?? "null"));
+            _messages.add(Message(
+                messageData['message'].toString(),
+                true,
+                messageData['file_url'].toString() ?? "null",
+                messageData['image'].toString() ?? "null"));
           }
           if (messageData['sender_id'].toString() != userId.toString()) {
-            _messages.add(Message(messageData['message'].toString(), false, messageData['file_url'].toString() ?? "null", messageData['image'].toString() ?? "null"));
+            _messages.add(Message(
+                messageData['message'].toString(),
+                false,
+                messageData['file_url'].toString() ?? "null",
+                messageData['image'].toString() ?? "null"));
           }
         }
         setState(() {});
       } else {}
-    } catch (e) {
-    } finally {}
-  }
-
-  Future<void> sendMessages(String message) async {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      int userId = prefs.getInt('user_id') ?? 0;
-      // int userId = 1;
-      var url = Uri.parse(
-          '${Config.BASE_URL}/api/group_messages/sendMessage.php');
-      var response = await http.post(url, body: {
-        'senderId': userId.toString(),
-        'groupId': widget.groupId.toString(),
-        'message': message.toString(),
-      });
     } catch (e) {
     } finally {}
   }
@@ -112,18 +216,20 @@ class _ChatGroupState extends State<ChatGroup> {
       setState(() {
         _messages.add(Message(text, true, "null", "null"));
         _textController.clear();
-
       });
-      _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      // _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      Future.delayed(Duration(milliseconds: 500), _scrollToBottom);
     }
   }
+
   void _navigateToDetailChatGroup(BuildContext context, String groupId) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => DetailChatGroup(groupId :groupId),
+        builder: (context) => DetailChatGroup(groupId: groupId),
       ),
     );
   }
+
   Future<void> _showSendImageDialog() async {
     XFile? selectedImage;
     final ImagePicker picker = ImagePicker();
@@ -135,7 +241,7 @@ class _ChatGroupState extends State<ChatGroup> {
           builder: (context, StateSetter dialogSetState) {
             Future<void> selectImage() async {
               final XFile? pickedFile =
-              await picker.pickImage(source: ImageSource.gallery);
+                  await picker.pickImage(source: ImageSource.gallery);
               if (pickedFile != null) {
                 dialogSetState(() {
                   selectedImage = pickedFile;
@@ -149,11 +255,13 @@ class _ChatGroupState extends State<ChatGroup> {
                 selectedImage = null;
               });
               setState(() {
-                _messages.add(Message("", true, "null",imageSend));
+                _messages.add(Message("", true, "null", imageSend));
                 _textController.clear();
               });
-              _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+              _scrollController
+                  .jumpTo(_scrollController.position.maxScrollExtent);
             }
+
             return AlertDialog(
               title: Text('Send Image'),
               content: SingleChildScrollView(
@@ -166,7 +274,6 @@ class _ChatGroupState extends State<ChatGroup> {
                         child: Image.file(File(selectedImage!.path),
                             height: 100, width: 100),
                       ),
-
                     SizedBox(height: 10),
                     ElevatedButton(
                       onPressed: selectImage,
@@ -203,8 +310,8 @@ class _ChatGroupState extends State<ChatGroup> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       int userId = prefs.getInt('user_id') ?? 0;
 
-      var request = http.MultipartRequest(
-          'POST', Uri.parse('${Config.BASE_URL}/api/group_messages/sendImage.php'));
+      var request = http.MultipartRequest('POST',
+          Uri.parse('${Config.BASE_URL}/api/group_messages/sendImage.php'));
       request.fields['senderId'] = userId.toString();
       request.fields['groupId'] = widget.groupId.toString();
       request.fields['message'] = "Đã gửi 1 ảnh";
@@ -215,17 +322,13 @@ class _ChatGroupState extends State<ChatGroup> {
       }
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
-      setState(() {
-
-      });
+      setState(() {});
       if (response.statusCode == 200) {
         var jsonData = json.decode(response.body);
 
         if (jsonData['success']) {
           imageSend = jsonData['message'];
-          setState(() {
-
-          });
+          setState(() {});
           print('Image sent successfully' + imageSend);
         } else {
           print('Failed to send image: ${jsonData['message']}');
@@ -250,7 +353,10 @@ class _ChatGroupState extends State<ChatGroup> {
         title: Text(nameGroup),
         actions: [
           CircleAvatar(
-            backgroundImage: imageGroup!="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ imageGroup!) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
+            backgroundImage: imageGroup != "null"
+                ? NetworkImage("${Config.BASE_URL}" + "/" + imageGroup!)
+                : NetworkImage(
+                    "${Config.BASE_URL}" + "/uploads/1_1702953146.jpg"),
           ),
           IconButton(
             icon: Icon(Icons.info_outline),
@@ -284,64 +390,80 @@ class _ChatGroupState extends State<ChatGroup> {
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final message = _messages[index];
-                return message.fileUrl == "null" ?  ListTile(
-                  title: message.isMe
-                      ? Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      padding: EdgeInsets.all(8.0),
-                      decoration: BoxDecoration(
-                        color: Color(0xFF105893),
-                        borderRadius: BorderRadius.circular(8.0),  // Độ cong của border
-                        border: Border.all(
-                          color: Color(0xFF105893),
-                          width: 1.0,  // Độ dày của border
-                        ),
-                      ),
-                      child: Text(
-                        message.text,
-                        style: TextStyle(color: Colors.white),  // Màu chữ trắng để nổi bật trên nền đỏ
-                      ),
-                        ))
-                      : Align(
-                          alignment: Alignment.centerLeft,
-                         child: Container(
-                        padding: EdgeInsets.all(8.0), // Padding để tạo khoảng trắng giữa border và text
-                        decoration: BoxDecoration(
-                          color: Color(0xFF807F7E),  // Màu nền đỏ
-                          borderRadius: BorderRadius.circular(8.0),  // Độ cong của border
-                          border: Border.all(
-                            color: Color(0xFF807F7E),  // Màu của border
-                            width: 1.0,  // Độ dày của border
+                return message.fileUrl == "null"
+                    ? ListTile(
+                        title: message.isMe
+                            ? Align(
+                                alignment: Alignment.centerRight,
+                                child: Container(
+                                  padding: EdgeInsets.all(8.0),
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFF105893),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    // Độ cong của border
+                                    border: Border.all(
+                                      color: Color(0xFF105893),
+                                      width: 1.0, // Độ dày của border
+                                    ),
+                                  ),
+                                  child: Text(
+                                    message.text,
+                                    style: TextStyle(
+                                        color: Colors
+                                            .white), // Màu chữ trắng để nổi bật trên nền đỏ
+                                  ),
+                                ))
+                            : Align(
+                                alignment: Alignment.centerLeft,
+                                child: Container(
+                                  padding: EdgeInsets.all(8.0),
+                                  // Padding để tạo khoảng trắng giữa border và text
+                                  decoration: BoxDecoration(
+                                    color: Color(0xFF807F7E),
+                                    // Màu nền đỏ
+                                    borderRadius: BorderRadius.circular(8.0),
+                                    // Độ cong của border
+                                    border: Border.all(
+                                      color:
+                                          Color(0xFF807F7E), // Màu của border
+                                      width: 1.0, // Độ dày của border
+                                    ),
+                                  ),
+                                  child: Text(
+                                    message.text,
+                                    style: TextStyle(
+                                        color: Colors
+                                            .white), // Màu chữ trắng để nổi bật trên nền đỏ
+                                  ),
+                                )),
+                        leading: message.isMe
+                            ? null // Không hiển thị ảnh nếu là người gửi
+                            : CircleAvatar(
+                                backgroundImage:
+                                    message.profileImageSender != "null"
+                                        ? NetworkImage("${Config.BASE_URL}" +
+                                            "/" +
+                                            message.profileImageSender)
+                                        : NetworkImage("${Config.BASE_URL}" +
+                                            "/uploads/1_1702953146.jpg"),
+                              ),
+                        subtitle: message.isMe
+                            ? Align(
+                                alignment: Alignment.centerRight,
+                                child: Text('Bạn'),
+                              )
+                            : null,
+                      )
+                    : Container(
+                        margin: EdgeInsets.symmetric(horizontal: 20.0),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20.0),
+                          child: Image.network(
+                            "${Config.BASE_URL}" + "/" + message.fileUrl,
+                            fit: BoxFit.cover,
                           ),
                         ),
-                        child: Text(
-                          message.text,
-                          style: TextStyle(color: Colors.white),  // Màu chữ trắng để nổi bật trên nền đỏ
-                        ),
-                      )
-                        ),
-                  leading: message.isMe
-                      ? null  // Không hiển thị ảnh nếu là người gửi
-                      : CircleAvatar(
-                    backgroundImage: message.profileImageSender !="null" ? NetworkImage("${Config.BASE_URL}" +"/"+ message.profileImageSender) : NetworkImage("${Config.BASE_URL}" +"/uploads/1_1702953146.jpg"),
-                  ),
-                  subtitle: message.isMe
-                      ? Align(
-                          alignment: Alignment.centerRight,
-                          child: Text('Bạn'),
-                        )
-                      : null,
-                ) : Container(
-                  margin: EdgeInsets.symmetric(horizontal: 20.0),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20.0),
-                    child: Image.network(
-                      "${Config.BASE_URL}" +"/"+message.fileUrl,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                );
+                      );
               },
             ),
           ),

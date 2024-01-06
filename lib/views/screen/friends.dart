@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../config.dart';
+import 'chat_info.dart';
 import 'friend_profile.dart';
 
 class Friends extends StatefulWidget {
@@ -243,7 +244,16 @@ class FriendList extends StatelessWidget {
             context, prefs.getInt('user_id') ?? 0, friend['user_id']),
       );
     } else {
-      return Icon(Icons.message);
+      return IconButton(
+        icon: Icon(Icons.message),
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ChatInfo(receiverId: friend['user_id'].toString()),
+            ),
+          );
+        },
+      );
     }
   }
 
