@@ -37,7 +37,6 @@ class _HomeState extends State<Home> {
 
     isLoading = true;
 
-    // Introduce a delay of 1 seconds
     await Future.delayed(Duration(seconds: 1));
 
     try {
@@ -108,13 +107,15 @@ class _HomeState extends State<Home> {
               return _buildUserPost(
                   post['username'],
                   post['created_at'],
-                  List<String>.from(
-                      post['media_urls'].map((item) => item.toString())),
+                  List<String>.from(post['media_urls'].map((item) => item.toString())),
                   post['content'],
                   post['post_id'],
                   post['isLiked'],
                   post['likeCount'],
-                  post['commentCount']);
+                  post['commentCount'],
+                  post['profile_image_url'] // Add this line to pass the profile image URL
+              );
+
             } else if (!isLoading) {
               fetchPosts(); // Fetch more posts
               return Center(
@@ -145,10 +146,12 @@ class _HomeState extends State<Home> {
       int postId,
       bool isLiked,
       int likeCount,
-      int commentCount) {
+      int commentCount,
+      String? profileImageUrl, // Make this nullable
+      ) {
     return Column(
       children: <Widget>[
-        _buildPostHeader(username, timeAgo),
+        _buildPostHeader(username, timeAgo, profileImageUrl), // Handle null
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
         _buildPostActions(postId, isLiked, likeCount, commentCount),
@@ -157,13 +160,17 @@ class _HomeState extends State<Home> {
     );
   }
 
-  Widget _buildPostHeader(String username, String timeAgo) {
+
+  Widget _buildPostHeader(String username, String timeAgo, String? profileImageUrl) {
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
         children: <Widget>[
           CircleAvatar(
-            backgroundImage: AssetImage('assets/images/user_placeholder.png'),
+            backgroundImage: (profileImageUrl != null
+                ? NetworkImage("${Config.BASE_URL}/$profileImageUrl")
+                : AssetImage('assets/images/user_placeholder.png')) as ImageProvider<Object>,
+            // Explicitly cast to ImageProvider<Object>
           ),
           SizedBox(width: 8.0),
           Column(
@@ -177,6 +184,7 @@ class _HomeState extends State<Home> {
       ),
     );
   }
+
 
   Widget _buildPostContent(String postText) {
     return Padding(
@@ -284,16 +292,6 @@ class _HomeState extends State<Home> {
     } else {
       print('Error liking/unliking post');
     }
-  }
-
-  Widget _buildActionButton(
-      IconData icon, String text, VoidCallback onPressed) {
-    return Row(
-      children: <Widget>[
-        IconButton(icon: Icon(icon), onPressed: onPressed),
-        Text(text),
-      ],
-    );
   }
 
   // Method to show comments in a dialog

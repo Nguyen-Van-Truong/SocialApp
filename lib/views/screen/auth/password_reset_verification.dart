@@ -105,7 +105,6 @@ class _PasswordResetVerificationState extends State<PasswordResetVerification> {
       child: Text(
         "Reset Password Verification",
         style: TextStyle(
-          color: Colors.black,
           fontSize: 18,
           fontWeight: FontWeight.bold,
         ),
@@ -122,9 +121,18 @@ class _PasswordResetVerificationState extends State<PasswordResetVerification> {
           SizedBox(height: 30),
           _buildCodeInputFields(),
           SizedBox(height: 20),
-          _buildResendEmailButton(context),
+          TextButton(
+            onPressed: resendVerificationCode,
+            child: Text("Resend Email"),
+          ),
           SizedBox(height: 30),
-          _buildVerifyButton(context),
+          ElevatedButton(
+            onPressed: verifyCode,
+            child: Text("Verify", style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(double.infinity, 50), // Full width button
+            ),
+          ),
         ],
       ),
     );
@@ -184,46 +192,6 @@ class _PasswordResetVerificationState extends State<PasswordResetVerification> {
             focusNodes[index - 1].requestFocus();
           }
         },
-      ),
-    );
-  }
-
-  Widget _buildResendEmailButton(BuildContext context) {
-    return TextButton(
-      child: Text(
-        "Resend Email",
-        style: TextStyle(
-          color: Color.fromRGBO(143, 148, 251, 1),
-        ),
-      ),
-      onPressed: () {
-        resendVerificationCode(); // Resend the verification code
-      },
-    );
-  }
-
-  Widget _buildVerifyButton(BuildContext context) {
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: LinearGradient(
-          colors: [
-            Color.fromRGBO(143, 148, 251, 1),
-            Color.fromRGBO(143, 148, 251, .6),
-          ],
-        ),
-      ),
-      child: Center(
-        child: TextButton(
-          onPressed: () {
-            verifyCode(); // Verify the code
-          },
-          child: Text(
-            "Verify",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
       ),
     );
   }

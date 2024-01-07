@@ -73,7 +73,6 @@ class ForgotPassword extends StatelessWidget {
       child: Text(
         "Forgot Password",
         style: TextStyle(
-          color: Colors.black,
           fontSize: 30,
           fontWeight: FontWeight.bold,
         ),
@@ -88,19 +87,19 @@ class ForgotPassword extends StatelessWidget {
         children: <Widget>[
           _buildTextField(hintText: "Email", obscureText: false),
           SizedBox(height: 30),
-          _buildResetButton(context),
-          SizedBox(height: 70),
-          GestureDetector(
-            onTap: () {
+          ElevatedButton(
+            onPressed: () => _sendVerificationCode(context),
+            child: Text("Send Request", style: TextStyle(fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(
+              minimumSize: Size(double.infinity, 50), // Full width button
+            ),
+          ),
+          SizedBox(height: 20),
+          TextButton(
+            onPressed: () {
               Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
             },
-            child: Text(
-              "Back to login",
-              style: TextStyle(
-                color: Color.fromRGBO(143, 148, 251, 1),
-                decoration: TextDecoration.underline,
-              ),
-            ),
+            child: Text("Back to login"),
           ),
         ],
       ),
@@ -136,30 +135,6 @@ class ForgotPassword extends StatelessWidget {
           offset: Offset(0, 10),
         ),
       ],
-    );
-  }
-
-  Widget _buildResetButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _sendVerificationCode(context),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: LinearGradient(
-            colors: [
-              Color.fromRGBO(143, 148, 251, 1),
-              Color.fromRGBO(143, 148, 251, .6),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Text(
-            "Send Request",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
     );
   }
 }

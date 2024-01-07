@@ -20,15 +20,17 @@ class _UserProfileState extends State<UserProfile> {
   int followerCount = 0;
   List<Map<String, dynamic>> listPost = [];
 
+  int currentPage = 0; // Pagination variables
+  bool isLoadingMore = false;
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
   }
 
-  void _loadListPosts(List<dynamic> posts) {
-    // Initialize the demoPosts list with the real data
-    listPost = posts.map((post) {
+  List<Map<String, dynamic>> _loadListPosts(List<dynamic> posts) {
+    return posts.map((post) {
       return {
         'username': name, // Use the logged-in user's name
         'created_at': post['created_at'],
@@ -49,11 +51,15 @@ class _UserProfileState extends State<UserProfile> {
     await _fetchUserProfile(userId);
   }
 
-  Future<void> _fetchUserProfile(int userId) async {
+  Future<void> _fetchUserProfile(int userId, {int page = 0}) async {
+    if (isLoadingMore) return; // Prevent multiple simultaneous loads
+    isLoadingMore = true;
+
     var response = await http.post(
       Uri.parse('${Config.BASE_URL}/api/users/getUserProfile.php'),
       body: {
         'userId': userId.toString(),
+        'page': page.toString(),
         'limit': '5',
       },
     );
@@ -62,29 +68,31 @@ class _UserProfileState extends State<UserProfile> {
       var data = json.decode(response.body);
       if (data['success']) {
         setState(() {
-          name = data['data']['user_info']['username'];
-          status = data['data']['user_info']['bio'];
-          friendCount = data['data']['user_info']['friendCount'];
-          followerCount = data['data']['user_info']['followerCount'];
-
-          // Check if profile image is not null
-          String profileImageUrl = data['data']['user_info']['profile_image'];
-          if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
-            avatar = '${Config.BASE_URL}/$profileImageUrl';
-          } else {
-            avatar = 'assets/images/user_placeholder.png';
+          if (page == 0) {
+            // Reset data for the first page
+            name = data['data']['user_info']['username'];
+            status = data['data']['user_info']['bio'];
+            friendCount = data['data']['user_info']['friendCount'];
+            followerCount = data['data']['user_info']['followerCount'];
+            avatar = data['data']['user_info']['profile_image'] != null &&
+                    data['data']['user_info']['profile_image'].isNotEmpty
+                ? '${Config.BASE_URL}/${data['data']['user_info']['profile_image']}'
+                : 'assets/images/user_placeholder.png';
+            listPost = []; // Clear previous data
           }
 
-          // Load user's posts
-          List<dynamic> userPosts = data['data']['posts'];
-          _loadListPosts(userPosts); // Load the user's posts
+          // Append new posts
+          var newPosts = _loadListPosts(data['data']['posts']);
+          listPost.addAll(newPosts);
+
+          currentPage = page; // Update the current page
         });
-      } else {
-        // Handle error
       }
     } else {
       // Handle network error
     }
+
+    isLoadingMore = false;
   }
 
   @override
@@ -151,36 +159,51 @@ class _UserProfileState extends State<UserProfile> {
   }
 
   Widget _buildPostsTab() {
-    return ListView.builder(
-      itemCount: listPost.length,
-      itemBuilder: (context, index) {
-        var post = listPost[index];
-        return _buildUserPost(
-            post['username'],
-            post['created_at'],
-            List<String>.from(
-                post['media_urls'].map((item) => item.toString())),
-            post['content'],
-            post['post_id'],
-            post['isLiked'],
-            post['likeCount'],
-            post['commentCount']);
+    return NotificationListener<ScrollNotification>(
+      onNotification: (ScrollNotification scrollInfo) {
+        if (!isLoadingMore &&
+            scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+          // Fetch next page
+          final prefs = SharedPreferences.getInstance();
+          prefs.then((prefs) {
+            int userId = prefs.getInt('user_id') ?? 0;
+            _fetchUserProfile(userId, page: currentPage + 1);
+          });
+        }
+        return true;
       },
+      child: ListView.builder(
+        itemCount: listPost.length,
+        itemBuilder: (context, index) {
+          var post = listPost[index];
+          return _buildUserPost(
+              post['username'],
+              post['created_at'],
+              List<String>.from(
+                  post['media_urls'].map((item) => item.toString())),
+              post['content'],
+              post['post_id'],
+              post['isLiked'],
+              post['likeCount'],
+              post['commentCount']);
+        },
+      ),
     );
   }
 
   Widget _buildUserPost(
-      String username,
-      String timeAgo,
-      List<String> mediaUrls,
-      String postText,
-      int postId,
-      bool isLiked,
-      int likeCount,
-      int commentCount) {
+    String username,
+    String timeAgo,
+    List<String> mediaUrls,
+    String postText,
+    int postId,
+    bool isLiked,
+    int likeCount,
+    int commentCount,
+  ) {
     return Column(
       children: <Widget>[
-        _buildPostHeader(username, timeAgo),
+        _buildPostHeader(username, timeAgo, avatar), // Pass the avatar URL
         _buildPostContent(postText),
         _buildPostImages(mediaUrls),
         _buildPostActions(postId, isLiked, likeCount, commentCount),
@@ -189,13 +212,23 @@ class _UserProfileState extends State<UserProfile> {
     );
   }
 
-  Widget _buildPostHeader(String username, String timeAgo) {
+  Widget _buildPostHeader(
+      String username, String timeAgo, String? profileImageUrl) {
+    ImageProvider backgroundImage;
+    if (profileImageUrl != null && profileImageUrl.startsWith('http')) {
+      backgroundImage = NetworkImage(profileImageUrl); // Network image
+    } else {
+      backgroundImage = AssetImage(profileImageUrl ??
+          'assets/images/user_placeholder.png'); // Local asset
+    }
+
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: Row(
         children: <Widget>[
           CircleAvatar(
-            backgroundImage: AssetImage('assets/images/user_placeholder.png'),
+            backgroundImage: backgroundImage,
+            radius: 20.0, // Adjust the radius as needed
           ),
           SizedBox(width: 8.0),
           Column(
@@ -248,12 +281,14 @@ class _UserProfileState extends State<UserProfile> {
       builder: (_) => Dialog(
         child: Image.network(
           "${Config.BASE_URL}/$imageUrl",
-          loadingBuilder: (BuildContext context, Widget child, ImageChunkEvent? loadingProgress) {
+          loadingBuilder: (BuildContext context, Widget child,
+              ImageChunkEvent? loadingProgress) {
             if (loadingProgress == null) return child;
             return Center(
               child: CircularProgressIndicator(
                 value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                    ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
                     : null,
               ),
             );
@@ -267,7 +302,6 @@ class _UserProfileState extends State<UserProfile> {
       ),
     );
   }
-
 
   Widget _buildPostActions(
       int postId, bool isLiked, int likeCount, int commentCount) {
@@ -343,7 +377,6 @@ class _UserProfileState extends State<UserProfile> {
     }
   }
 
-
   Widget _buildActionButton(
       IconData icon, String text, VoidCallback onPressed) {
     return Row(
@@ -368,7 +401,7 @@ class _UserProfileState extends State<UserProfile> {
           builder: (context, StateSetter dialogSetState) {
             Future<void> selectImage() async {
               final XFile? pickedFile =
-              await picker.pickImage(source: ImageSource.gallery);
+                  await picker.pickImage(source: ImageSource.gallery);
               if (pickedFile != null) {
                 dialogSetState(() {
                   selectedImage = pickedFile;
@@ -402,7 +435,7 @@ class _UserProfileState extends State<UserProfile> {
                     TextField(
                       controller: commentController,
                       decoration:
-                      InputDecoration(hintText: 'Write a comment...'),
+                          InputDecoration(hintText: 'Write a comment...'),
                     ),
                     SizedBox(height: 10),
                     ElevatedButton(
@@ -449,7 +482,6 @@ class _UserProfileState extends State<UserProfile> {
       },
     );
   }
-
 
   // // Method to fetch comments from the server
   Future<List<dynamic>> _fetchComments(int postId) async {

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:social_app/views/screen/auth/register.dart';
-import 'package:social_app/views/screen/home.dart';
 import 'package:social_app/views/widgets/MainScreen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../admin/AdminDashboardPage.dart';
 import 'forgot_password.dart';
 import 'package:social_app/config.dart';
 
@@ -25,7 +25,6 @@ class Login extends StatelessWidget {
     if (response.statusCode == 200) {
       var data = json.decode(response.body);
       if (data['success']) {
-        // Lưu token và user_id vào SharedPreferences
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', data['token']);
         await prefs.setInt('user_id', data['user_id']);
@@ -36,13 +35,20 @@ class Login extends StatelessWidget {
             : 'assets/images/user_placeholder.png';
         await prefs.setString('profile_image_url', profileImageUrl);
 
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (context) => MainScreen()));
+        // Check the user's role
+        String role = data['role'];
+        if (role == 'admin') {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (context) => AdminDashboardPage()));
+        } else {
+          Navigator.pushReplacement(
+              context, MaterialPageRoute(builder: (context) => MainScreen()));
+        }
       } else {
         _showErrorDialog(context, data['message']);
       }
     } else {
-      _showErrorDialog(context, 'Lỗi kết nối mạng');
+      _showErrorDialog(context, 'Network Error');
     }
   }
 
@@ -50,7 +56,7 @@ class Login extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Lỗi'),
+        title: Text('Error'),
         content: Text(message),
         actions: <Widget>[
           TextButton(
@@ -67,7 +73,6 @@ class Login extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         child: Column(
           children: <Widget>[
@@ -86,7 +91,6 @@ class Login extends StatelessWidget {
       child: Text(
         "Login",
         style: TextStyle(
-          color: Colors.black,
           fontSize: 40,
           fontWeight: FontWeight.bold,
         ),
@@ -99,45 +103,13 @@ class Login extends StatelessWidget {
       padding: EdgeInsets.all(30.0),
       child: Column(
         children: <Widget>[
-          _buildTextField(
-              controller: _emailController,
-              hintText: "Email",
-              obscureText: false),
-          _buildTextField(
-              controller: _passwordController,
-              hintText: "Password",
-              obscureText: true),
+          _buildTextField(controller: _emailController, hintText: "Email", obscureText: false),
+          _buildTextField(controller: _passwordController, hintText: "Password", obscureText: true),
           SizedBox(height: 30),
           _buildLoginButton(context),
-          GestureDetector(
-            onTap: () {
-              // Thực hiện điều hướng đến trang quên mật khẩu
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => ForgotPassword()));
-            },
-            child: Text(
-              "Forgot Password?", // Cập nhật văn bản ở đây
-              style: TextStyle(
-                color: Color.fromRGBO(143, 148, 251, 1),
-                decoration: TextDecoration.underline,
-              ),
-              textAlign: TextAlign.center, // Căn chỉnh văn bản ở giữa
-            ),
-          ),
-          SizedBox(height: 40), // Thêm khoảng cách nếu cần
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                  context, MaterialPageRoute(builder: (context) => Register()));
-            },
-            child: Text(
-              "Create Account",
-              style: TextStyle(
-                color: Color.fromRGBO(143, 148, 251, 1),
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
+          _buildTextButton(context, "Forgot Password?", ForgotPassword()),
+          SizedBox(height: 40),
+          _buildTextButton(context, "Create Account", Register()),
         ],
       ),
     );
@@ -151,7 +123,18 @@ class Login extends StatelessWidget {
     return Container(
       padding: EdgeInsets.all(5),
       margin: EdgeInsets.only(bottom: 15),
-      decoration: _textFieldDecoration(),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.2),
+            blurRadius: 20.0,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
       child: TextField(
         controller: controller,
         obscureText: obscureText,
@@ -164,42 +147,25 @@ class Login extends StatelessWidget {
     );
   }
 
-  BoxDecoration _textFieldDecoration() {
-    return BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: Color.fromRGBO(143, 148, 251, 1)),
-      boxShadow: [
-        BoxShadow(
-          color: Color.fromRGBO(143, 148, 251, .2),
-          blurRadius: 20.0,
-          offset: Offset(0, 10),
-        ),
-      ],
+  Widget _buildLoginButton(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () => _login(context),
+      child: Text(
+        "Login",
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      style: ElevatedButton.styleFrom(
+        minimumSize: Size(double.infinity, 50),
+      ),
     );
   }
 
-  Widget _buildLoginButton(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _login(context),
-      child: Container(
-        height: 50,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: LinearGradient(
-            colors: [
-              Color.fromRGBO(143, 148, 251, 1),
-              Color.fromRGBO(143, 148, 251, .6),
-            ],
-          ),
-        ),
-        child: Center(
-          child: Text(
-            "Login",
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
+  Widget _buildTextButton(BuildContext context, String text, Widget page) {
+    return TextButton(
+      onPressed: () {
+        Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+      },
+      child: Text(text),
     );
   }
 }

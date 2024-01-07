@@ -28,7 +28,8 @@ class _ProfileState extends State<Profile> {
     setState(() {
       username = prefs.getString('username') ?? '';
       email = prefs.getString('email') ?? '';
-      avatarUrl = prefs.getString('profile_image_url') ?? 'assets/images/naruto.jpg';
+      avatarUrl =
+          prefs.getString('profile_image_url') ?? 'assets/images/naruto.jpg';
       print(avatarUrl);
     });
   }
@@ -38,6 +39,7 @@ class _ProfileState extends State<Profile> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Profile'),
+        centerTitle: true,
       ),
       body: ListView(
         children: <Widget>[
@@ -55,13 +57,15 @@ class _ProfileState extends State<Profile> {
                   },
                   child: !avatarUrl.startsWith('assets')
                       ? CircleAvatar(
-                    radius: 60,
-                    backgroundImage: NetworkImage("${Config.BASE_URL}/$avatarUrl"), // Load from network
-                  )
+                          radius: 60,
+                          backgroundImage: NetworkImage(
+                              "${Config.BASE_URL}/$avatarUrl"), // Load from network
+                        )
                       : CircleAvatar(
-                    radius: 60,
-                    backgroundImage: AssetImage(avatarUrl), // Load local asset
-                  ),
+                          radius: 60,
+                          backgroundImage:
+                              AssetImage(avatarUrl), // Load local asset
+                        ),
                 ),
                 SizedBox(height: 10.0),
                 Text(
@@ -85,7 +89,12 @@ class _ProfileState extends State<Profile> {
             leading: Icon(Icons.edit),
             title: Text('Edit Personal Information'),
             onTap: () {
-              // Navigate to EditPersonalInformation screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditPersonalInformation(),
+                ),
+              );
             },
           ),
           ListTile(
@@ -103,12 +112,19 @@ class _ProfileState extends State<Profile> {
           ListTile(
             leading: Icon(Icons.exit_to_app),
             title: Text('Log Out'),
-            onTap: () {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Login()));
-            },
+            onTap: _logout, // Call the logout function here
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // Clear all shared preferences
+
+    // Navigate to Login Screen
+    Navigator.of(context)
+        .pushReplacement(MaterialPageRoute(builder: (context) => Login()));
   }
 }
